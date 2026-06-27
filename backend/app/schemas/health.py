@@ -21,11 +21,26 @@ class LabAnalysisRequest(BaseModel):
     context: dict[str, Any] | None = None
 
 
+class SymptomItem(BaseModel):
+    name: str
+    duration: str | None = None
+    severity: str | None = None
+
+
 class SymptomRequest(BaseModel):
-    symptoms: list[str]
+    symptoms: list[SymptomItem | str]
     duration: str | None = None
     severity: str | None = None
     context: dict[str, Any] | None = None
+
+    def symptoms_as_list(self) -> list[dict | str]:
+        out = []
+        for s in self.symptoms:
+            if isinstance(s, SymptomItem):
+                out.append(s.model_dump(exclude_none=True))
+            else:
+                out.append(s)
+        return out
 
 
 class TimelineEntryRequest(BaseModel):

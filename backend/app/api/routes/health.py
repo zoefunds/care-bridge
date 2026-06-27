@@ -155,7 +155,7 @@ async def analyze_symptoms(
 
     analysis = SymptomAnalysis(
         user_id=user.id,
-        symptoms={"symptoms": req.symptoms, "duration": req.duration, "severity": req.severity},
+        symptoms={"symptoms": req.symptoms_as_list(), "duration": req.duration, "severity": req.severity},
         created_at=now,
     )
     db.add(analysis)
@@ -165,7 +165,7 @@ async def analyze_symptoms(
     try:
         tx_hash, result = await genlayer_client.analyze_symptoms(
             address,
-            req.symptoms,
+            req.symptoms_as_list(),
             {"duration": req.duration, "severity": req.severity, **(req.context or {})},
         )
         analysis.genlayer_tx_hash = tx_hash
