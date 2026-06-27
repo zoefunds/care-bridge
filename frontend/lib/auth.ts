@@ -86,7 +86,7 @@ export async function decryptWalletKey(
     ["deriveKey"]
   );
   const aesKey = await crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: saltBytes, iterations: 310_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: saltBytes.buffer as ArrayBuffer, iterations: 310_000, hash: "SHA-256" },
     rawKey,
     { name: "AES-GCM", length: 256 },
     false,
@@ -95,9 +95,9 @@ export async function decryptWalletKey(
 
   // Decrypt: AES-GCM with 12-byte IV, no AAD
   const plainBytes = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: ivBytes },
+    { name: "AES-GCM", iv: ivBytes.buffer as ArrayBuffer },
     aesKey,
-    cipherBytes
+    cipherBytes.buffer as ArrayBuffer
   );
 
   const privateKeyHex = "0x" + bytesToHex(new Uint8Array(plainBytes));
