@@ -89,6 +89,9 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user_id=str(user.id),
         wallet_address=wallet.address if wallet else "",
+        wallet_encrypted_key=wallet.encrypted_key if wallet else None,
+        wallet_key_salt=wallet.key_salt if wallet else None,
+        wallet_key_iv=wallet.key_iv if wallet else None,
     )
 
 

@@ -19,6 +19,9 @@ class LabMarker(BaseModel):
 class LabAnalysisRequest(BaseModel):
     markers: list[LabMarker]
     context: dict[str, Any] | None = None
+    # Sent by frontend after on-chain consensus
+    tx_hash: str | None = None
+    genlayer_result: dict[str, Any] | None = None
 
 
 class SymptomItem(BaseModel):
@@ -32,6 +35,9 @@ class SymptomRequest(BaseModel):
     duration: str | None = None
     severity: str | None = None
     context: dict[str, Any] | None = None
+    # Sent by frontend after on-chain consensus
+    tx_hash: str | None = None
+    genlayer_result: dict[str, Any] | None = None
 
     def symptoms_as_list(self) -> list[dict | str]:
         out = []
@@ -54,17 +60,23 @@ class TimelineEntryRequest(BaseModel):
 
 class MedicationRequest(BaseModel):
     medications: list[str]
+    tx_hash: str | None = None
+    genlayer_result: dict[str, Any] | None = None
 
 
 class ReportSummaryRequest(BaseModel):
     report_text: str
     report_type: str | None = None
+    tx_hash: str | None = None
+    genlayer_result: dict[str, Any] | None = None
 
 
 class TriageRequest(BaseModel):
     symptoms: list[str] | None = None
     lab_analysis_id: str | None = None
     history_notes: str | None = None
+    tx_hash: str | None = None
+    genlayer_result: dict[str, Any] | None = None
 
 
 class AnalysisResponse(BaseModel):

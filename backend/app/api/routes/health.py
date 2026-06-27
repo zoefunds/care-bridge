@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -14,7 +13,6 @@ from app.schemas.health import (
     MedicationRequest, ReportSummaryRequest, TriageRequest, AnalysisResponse,
 )
 from app.api.dependencies import get_verified_user
-from app.services.genlayer.client import genlayer_client
 from app.services.ocr.ocr_service import (
     extract_text_from_pdf, extract_text_from_image, extract_lab_markers
 )
@@ -27,12 +25,6 @@ DISCLAIMER = (
 )
 
 NULL_ADDRESS = "0x0000000000000000000000000000000000000000"
-
-
-async def _get_wallet_address(user_id: UUID, db: AsyncSession) -> str:
-    result = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
-    wallet = result.scalar_one_or_none()
-    return wallet.address if wallet else NULL_ADDRESS
 
 
 @router.post("/labs/upload")
@@ -81,33 +73,20 @@ async def analyze_labs(
     user: User = Depends(get_verified_user),
     db: AsyncSession = Depends(get_db),
 ):
-    address = await _get_wallet_address(user.id, db)
     now = datetime.now(timezone.utc)
+    result = req.genlayer_result or {}
+    status = "complete" if req.tx_hash else "pending"
 
     analysis = LabAnalysis(
         user_id=user.id,
         raw_input={"markers": [m.model_dump() for m in req.markers]},
-        status="processing",
+        genlayer_tx_hash=req.tx_hash,
+        consensus_output=result,
+        risk_level=(result).get("risk_level", "unknown"),
+        status=status,
         created_at=now,
     )
     db.add(analysis)
-    await db.commit()
-    await db.refresh(analysis)
-
-    try:
-        tx_hash, result = await genlayer_client.analyze_lab_results(
-            address,
-            [m.model_dump() for m in req.markers],
-            req.context or {},
-        )
-        analysis.genlayer_tx_hash = tx_hash
-        analysis.consensus_output = result
-        analysis.risk_level = (result or {}).get("risk_level", "unknown")
-        analysis.status = "complete"
-    except Exception as e:
-        analysis.status = "failed"
-        analysis.consensus_output = {"error": str(e)}
-
     await db.commit()
     await db.refresh(analysis)
     return analysis
@@ -150,35 +129,32 @@ async def analyze_symptoms(
     user: User = Depends(get_verified_user),
     db: AsyncSession = Depends(get_db),
 ):
-    address = await _get_wallet_address(user.id, db)
     now = datetime.now(timezone.utc)
+    result = req.genlayer_result or {}
 
     analysis = SymptomAnalysis(
         user_id=user.id,
-        symptoms={"symptoms": req.symptoms_as_list(), "duration": req.duration, "severity": req.severity},
+        symptoms={
+            "symptoms": req.symptoms_as_list(),
+            "duration": req.duration,
+            "severity": req.severity,
+        },
+        genlayer_tx_hash=req.tx_hash,
+        consensus_output=result,
+        risk_level=result.get("risk_level"),
+        severity_level=result.get("severity"),
+        care_recommendation=result.get("care_recommendation"),
         created_at=now,
     )
     db.add(analysis)
     await db.commit()
     await db.refresh(analysis)
-
-    try:
-        tx_hash, result = await genlayer_client.analyze_symptoms(
-            address,
-            req.symptoms_as_list(),
-            {"duration": req.duration, "severity": req.severity, **(req.context or {})},
-        )
-        analysis.genlayer_tx_hash = tx_hash
-        analysis.consensus_output = result
-        analysis.risk_level = (result or {}).get("risk_level")
-        analysis.severity_level = (result or {}).get("severity")
-        analysis.care_recommendation = (result or {}).get("care_recommendation")
-    except Exception as e:
-        analysis.consensus_output = {"error": str(e)}
-
-    await db.commit()
-    await db.refresh(analysis)
-    return {**analysis.__dict__, "disclaimer": DISCLAIMER}
+    return {
+        "id": str(analysis.id),
+        "tx_hash": req.tx_hash,
+        "result": result,
+        "disclaimer": DISCLAIMER,
+    }
 
 
 @router.post("/timeline/add")
@@ -224,28 +200,25 @@ async def analyze_medications(
     user: User = Depends(get_verified_user),
     db: AsyncSession = Depends(get_db),
 ):
-    address = await _get_wallet_address(user.id, db)
     now = datetime.now(timezone.utc)
+    result = req.genlayer_result or {}
 
     med = Medication(
         user_id=user.id,
         medication_name=", ".join(req.medications),
+        genlayer_tx_hash=req.tx_hash,
+        consensus_output=result,
         created_at=now,
     )
     db.add(med)
     await db.commit()
     await db.refresh(med)
-
-    try:
-        tx_hash, result = await genlayer_client.analyze_medication(address, req.medications)
-        med.genlayer_tx_hash = tx_hash
-        med.consensus_output = result
-    except Exception as e:
-        med.consensus_output = {"error": str(e)}
-
-    await db.commit()
-    await db.refresh(med)
-    return {**med.__dict__, "disclaimer": DISCLAIMER}
+    return {
+        "id": str(med.id),
+        "tx_hash": req.tx_hash,
+        "result": result,
+        "disclaimer": DISCLAIMER,
+    }
 
 
 @router.post("/reports/summarize")
@@ -254,14 +227,11 @@ async def summarize_report(
     user: User = Depends(get_verified_user),
     db: AsyncSession = Depends(get_db),
 ):
-    address = await _get_wallet_address(user.id, db)
-    try:
-        tx_hash, result = await genlayer_client.summarize_report(
-            address, req.report_text, {"report_type": req.report_type}
-        )
-        return {"tx_hash": tx_hash, "summary": result, "disclaimer": DISCLAIMER}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "tx_hash": req.tx_hash,
+        "summary": req.genlayer_result or {},
+        "disclaimer": DISCLAIMER,
+    }
 
 
 @router.post("/triage")
@@ -270,20 +240,8 @@ async def health_triage(
     user: User = Depends(get_verified_user),
     db: AsyncSession = Depends(get_db),
 ):
-    address = await _get_wallet_address(user.id, db)
-    try:
-        tx_hash, result = await genlayer_client.health_triage(
-            address,
-            {
-                "symptoms": req.symptoms,
-                "history_notes": req.history_notes,
-                "lab_analysis_id": req.lab_analysis_id,
-            },
-        )
-        return {
-            "tx_hash": tx_hash,
-            "triage": result,
-            "disclaimer": "Triage guidance only. Seek emergency care immediately if symptoms are severe.",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "tx_hash": req.tx_hash,
+        "triage": req.genlayer_result or {},
+        "disclaimer": "Triage guidance only. Seek emergency care immediately if symptoms are severe.",
+    }

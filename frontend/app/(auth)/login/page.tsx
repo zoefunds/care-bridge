@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { authApi } from "@/lib/api";
-import { saveAuth } from "@/lib/auth";
+import { saveAuth, decryptWalletKey } from "@/lib/auth";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const schema = z.object({
@@ -32,14 +32,34 @@ export default function LoginPage() {
     try {
       const res = await authApi.login(data);
       const me = await authApi.me();
-      saveAuth(res.data.access_token, {
-        id: res.data.user_id,
-        email: me.data.email,
-        full_name: me.data.full_name,
-        is_verified: me.data.is_verified,
-        role: me.data.role,
-        wallet_address: res.data.wallet_address,
-      });
+      const walletBundle = res.data.wallet_encrypted_key
+        ? {
+            encrypted_key: res.data.wallet_encrypted_key,
+            key_salt: res.data.wallet_key_salt,
+            key_iv: res.data.wallet_key_iv,
+            address: res.data.wallet_address,
+          }
+        : null;
+      saveAuth(
+        res.data.access_token,
+        {
+          id: res.data.user_id,
+          email: me.data.email,
+          full_name: me.data.full_name,
+          is_verified: me.data.is_verified,
+          role: me.data.role,
+          wallet_address: res.data.wallet_address,
+        },
+        walletBundle
+      );
+      // Decrypt and cache the private key in sessionStorage using the just-typed password
+      if (walletBundle) {
+        try {
+          await decryptWalletKey(walletBundle, data.password);
+        } catch {
+          // Non-fatal: GenLayer calls will re-prompt or fail gracefully
+        }
+      }
       router.push("/dashboard");
     } catch (e: any) {
       setError(e.response?.data?.detail || "Invalid credentials");

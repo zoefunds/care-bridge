@@ -40,6 +40,10 @@ class TokenResponse(BaseModel):
     expires_in: int
     user_id: str
     wallet_address: str
+    # Encrypted wallet bundle — frontend decrypts with user's password
+    wallet_encrypted_key: str | None = None
+    wallet_key_salt: str | None = None
+    wallet_key_iv: str | None = None
 
 
 class UserResponse(BaseModel):

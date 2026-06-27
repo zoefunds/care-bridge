@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     GENLAYER_NODE_URL: str = "https://studio.genlayer.com/api"
     GENLAYER_CONTRACT_ADDRESS: str = ""
     GENLAYER_VALIDATOR_COUNT: int = 3
-    GENLAYER_PRIVATE_KEY: str = ""
 
     @property
     def is_production(self) -> bool:
