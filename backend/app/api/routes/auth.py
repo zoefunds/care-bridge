@@ -114,6 +114,25 @@ async def verify_email(req: VerifyEmailRequest, db: AsyncSession = Depends(get_d
     return {"message": "Email verified successfully"}
 
 
+@router.post("/resend-verification")
+async def resend_verification(req: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == req.email))
+    user = result.scalar_one_or_none()
+    if user and not user.is_verified:
+        now = datetime.now(timezone.utc)
+        verify_token = generate_verification_token()
+        verification = EmailVerification(
+            user_id=user.id,
+            token=hash_token(verify_token),
+            expires_at=now + timedelta(hours=24),
+            created_at=now,
+        )
+        db.add(verification)
+        await db.commit()
+        await send_verification_email(user.email, user.full_name or user.email, verify_token)
+    return {"message": "If that email exists and is unverified, a new link has been sent"}
+
+
 @router.post("/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email))
