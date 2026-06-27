@@ -15,11 +15,14 @@ from app.models.user import (  # noqa: F401
 
 config = context.config
 
-# Convert asyncpg URL to sync psycopg2 URL for Alembic
+# Convert to sync psycopg2 URL for Alembic (strip asyncpg dialect + SSL params)
+_raw = settings.DATABASE_URL.strip()
+for _p in ("?sslmode=disable", "&sslmode=disable", "?sslmode=require", "&sslmode=require"):
+    _raw = _raw.replace(_p, "")
 db_url = (
-    settings.DATABASE_URL
+    _raw
     .replace("postgresql+asyncpg://", "postgresql://")
-    .replace("?sslmode=disable", "")
+    .replace("postgres://", "postgresql://")
 )
 config.set_main_option("sqlalchemy.url", db_url)
 
