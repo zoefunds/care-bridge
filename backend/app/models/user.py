@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import String, Boolean, Date, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -191,7 +192,7 @@ class AuditLog(Base):
     resource_type: Mapped[str | None] = mapped_column(String(50))
     resource_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     ip_address: Mapped[str | None] = mapped_column(String(45))
-    metadata: Mapped[dict | None] = mapped_column(JSONB)
+    log_metadata: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    user: Mapped["User | None"] = relationship(back_populates="audit_logs")
+    user: Mapped[Optional["User"]] = relationship(back_populates="audit_logs")
