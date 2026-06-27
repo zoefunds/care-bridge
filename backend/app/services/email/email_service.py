@@ -13,7 +13,7 @@ def _get_client():
 
 
 async def send_verification_email(to_email: str, full_name: str, token: str):
-    verify_url = f"{settings.FRONTEND_URL}/auth/verify-email?token={token}"
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     html = (
         '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">'
         '<h2 style="color:#0ea5e9;">Welcome to Care Bridge</h2>'
@@ -40,7 +40,7 @@ async def send_verification_email(to_email: str, full_name: str, token: str):
 
 
 async def send_password_reset_email(to_email: str, full_name: str, token: str):
-    reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     html = (
         '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">'
         '<h2 style="color:#0ea5e9;">Password Reset</h2>'
