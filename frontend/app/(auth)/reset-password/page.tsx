@@ -31,7 +31,7 @@ function ResetPasswordContent() {
     try {
       await authApi.resetPassword(token, data.new_password);
       setDone(true);
-      setTimeout(() => router.push("/auth/login"), 2000);
+      setTimeout(() => router.push("/login"), 2000);
     } catch (e: any) {
       setError(e.response?.data?.detail || "Reset failed");
     } finally {

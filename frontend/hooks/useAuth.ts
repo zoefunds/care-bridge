@@ -18,7 +18,7 @@ export function useAuth() {
   const logout = () => {
     clearAuth();
     setUser(null);
-    router.push("/auth/login");
+    router.push("/login");
   };
 
   return { user, loading, logout, isAuthenticated: !!user };

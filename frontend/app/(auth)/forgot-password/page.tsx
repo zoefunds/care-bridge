@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
         <Mail className="w-12 h-12 text-sky-500 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-900 mb-2">Check your inbox</h2>
         <p className="text-gray-500 mb-6">If that email is registered, a reset link has been sent.</p>
-        <Link href="/auth/login" className="text-sky-600 font-medium hover:underline">Back to login</Link>
+        <Link href="/login" className="text-sky-600 font-medium hover:underline">Back to login</Link>
       </div>
     </div>
   );
@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-500">
-          <Link href="/auth/login" className="text-sky-600 font-medium hover:underline">Back to login</Link>
+          <Link href="/login" className="text-sky-600 font-medium hover:underline">Back to login</Link>
         </p>
       </div>
     </div>

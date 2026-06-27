@@ -89,10 +89,10 @@ export default function LandingPage() {
             <a href="#security" className="hover:text-sky-600 transition-colors">Security</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="text-sm font-medium text-gray-700 hover:text-sky-600 transition-colors px-4 py-2">
+            <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-sky-600 transition-colors px-4 py-2">
               Sign in
             </Link>
-            <Link href="/auth/register"
+            <Link href="/register"
               className="text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg transition-colors">
               Get started
             </Link>
@@ -131,7 +131,7 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/register"
+              <Link href="/register"
                 className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white
                            font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-sky-500/25 text-lg">
                 Start for free <ArrowRight className="w-5 h-5" />
@@ -292,7 +292,7 @@ export default function LandingPage() {
           <p className="text-xl text-white/80 mb-10">
             Join Care Bridge today. Upload your first lab result in under 60 seconds.
           </p>
-          <Link href="/auth/register"
+          <Link href="/register"
             className="inline-flex items-center gap-2 bg-white text-sky-600 font-bold
                        px-10 py-4 rounded-xl hover:bg-sky-50 transition-all text-lg shadow-xl">
             Create free account <ArrowRight className="w-5 h-5" />
@@ -311,8 +311,8 @@ export default function LandingPage() {
             Educational purposes only. Not medical advice. © {new Date().getFullYear()} Care Bridge.
           </p>
           <div className="flex gap-6 text-sm">
-            <Link href="/auth/login" className="hover:text-white transition-colors">Sign in</Link>
-            <Link href="/auth/register" className="hover:text-white transition-colors">Register</Link>
+            <Link href="/login" className="hover:text-white transition-colors">Sign in</Link>
+            <Link href="/register" className="hover:text-white transition-colors">Register</Link>
           </div>
         </div>
       </footer>

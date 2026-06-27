@@ -34,7 +34,7 @@ function VerifyEmailContent() {
           <><XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Verification failed</h2>
           <p className="text-gray-500 mb-6">The link may be expired or invalid.</p>
-          <Link href="/auth/login" className="text-sky-600 font-medium hover:underline">Back to login</Link></>
+          <Link href="/login" className="text-sky-600 font-medium hover:underline">Back to login</Link></>
         )}
       </div>
     </div>

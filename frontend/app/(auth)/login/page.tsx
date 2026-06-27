@@ -71,7 +71,7 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium text-gray-700">Password</label>
-              <Link href="/auth/forgot-password" className="text-xs text-sky-600 hover:underline">
+              <Link href="/forgot-password" className="text-xs text-sky-600 hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -103,7 +103,7 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don't have an account?{" "}
-          <Link href="/auth/register" className="text-sky-600 font-medium hover:underline">Create one</Link>
+          <Link href="/register" className="text-sky-600 font-medium hover:underline">Create one</Link>
         </p>
       </div>
     </div>

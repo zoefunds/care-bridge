@@ -21,7 +21,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("cb_token");
       localStorage.removeItem("cb_user");
-      window.location.href = "/auth/login";
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
