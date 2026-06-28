@@ -6,6 +6,7 @@ export interface AuthUser {
   full_name: string | null;
   is_verified: boolean;
   role: string;
+  preferred_language?: string;
   wallet_address?: string;
 }
 

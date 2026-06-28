@@ -63,6 +63,11 @@ export const healthApi = {
     api.post("/health/medications/analyze", { medications }),
   getMedication: (id: string) => api.get(`/health/medications/${id}`),
 
+  // History list endpoints
+  listSymptoms: () => api.get("/health/symptoms"),
+  listMedications: () => api.get("/health/medications"),
+  listJobs: (type?: string) => api.get("/health/jobs", { params: type ? { job_type: type } : {} }),
+
   // Generic job poll (for report, triage, doctor-visit, query, trend, prevention, route)
   getJob: (id: string) => api.get(`/health/jobs/${id}`),
   // Submit a signed tx hash back to the backend (path relative to /api/v1)

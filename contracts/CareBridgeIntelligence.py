@@ -307,15 +307,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             analyze,
             (
-                "Both outputs are valid JSON objects describing an educational "
-                "laboratory result interpretation. Both contain a 'risk_level' "
-                "field with value LOW, MODERATE, HIGH, or CRITICAL, a 'summary' "
-                "string, a 'flagged_markers' array (possibly empty), and a "
-                "'disclaimer' string. They are equivalent as long as they agree "
-                "on whether the overall marker pattern is broadly normal (LOW) or "
-                "shows meaningful deviations (MODERATE/HIGH/CRITICAL). Differences "
-                "in exact wording, the number of flagged markers, or minor phrasing "
-                "are acceptable."
+                "Both are valid educational lab result responses. They are equivalent "
+                "if both classify the overall risk the same way: either both say the "
+                "results are broadly normal (LOW risk) or both say there are noteworthy "
+                "deviations (MODERATE, HIGH, or CRITICAL). Any differences in JSON "
+                "structure, field names, wording, number of flagged markers, or "
+                "specific comments are acceptable and do not affect equivalence."
             ),
         )
 
@@ -425,13 +422,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             analyze,
             (
-                "Both outputs are valid JSON objects providing educational symptom "
-                "guidance. Both contain 'triage_level' (LOW/MODERATE/HIGH/CRITICAL), "
-                "'urgency' (ROUTINE/SOON/URGENT/EMERGENCY), 'care_channel', and a "
-                "'disclaimer'. They are equivalent as long as they agree on the "
-                "broad triage category (routine vs. urgent vs. emergency) and on "
-                "the appropriate care channel. Minor wording differences, different "
-                "numbers of possible causes, or different phrasing are acceptable."
+                "Both are valid educational symptom guidance responses. They are "
+                "equivalent if they agree on the broad urgency level: both routine "
+                "(LOW/ROUTINE), both moderate/soon, or both urgent/emergency. Any "
+                "differences in JSON structure, field names, list of possible causes, "
+                "home care advice, or specific wording are acceptable and do not "
+                "affect equivalence."
             ),
         )
 
@@ -556,12 +552,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             summarize,
             (
-                "Both outputs are valid JSON objects providing an educational plain-"
-                "language summary of a medical report. Both contain a 'summary' "
-                "string, 'key_findings' array, 'action_items' array, and 'disclaimer'. "
-                "They are equivalent if they capture the same overall clinical message "
-                "(normal vs. abnormal, same major findings) even if the exact wording "
-                "or number of bullet points differs."
+                "Both are valid educational medical report summaries. They are "
+                "equivalent if both convey the same overall clinical picture: either "
+                "both indicate the report is broadly normal/unremarkable, or both "
+                "indicate there are findings that warrant attention. Differences in "
+                "JSON structure, field names, wording, number of bullet points, "
+                "action items, or specific phrasing are acceptable."
             ),
         )
 
@@ -686,14 +682,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             explain,
             (
-                "Both outputs are valid JSON objects providing educational medication "
-                "information. Both contain a 'medications' array with individual drug "
-                "info, a 'potential_interactions' array (possibly empty), and "
-                "'overall_interaction_risk' (LOW/MODERATE/HIGH). They are equivalent "
-                "if they agree on overall interaction risk level and identify the same "
-                "major drug class concerns. Differences in the exact list of side "
-                "effects, wording of warnings, or number of pharmacist questions are "
-                "acceptable."
+                "Both are valid educational medication information responses. They are "
+                "equivalent if they agree on the overall interaction risk category "
+                "(both LOW, both MODERATE, or both HIGH). Any differences in JSON "
+                "structure, field names, which specific side effects are listed, "
+                "number of pharmacist questions, exact wording of warnings, or which "
+                "individual drug class details are included are all acceptable."
             ),
         )
 
@@ -805,12 +799,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             prepare,
             (
-                "Both outputs are valid JSON objects providing pre-appointment "
-                "preparation guidance. Both contain 'priority_questions' (a non-empty "
-                "array of question objects), 'bring_to_appointment', and 'disclaimer'. "
-                "They are equivalent if both produce a meaningful set of patient "
-                "questions appropriate for the stated specialty and chief complaint, "
-                "even if the exact questions differ in phrasing or number."
+                "Both are valid educational doctor visit preparation responses. They "
+                "are equivalent if both provide a non-empty list of patient questions "
+                "or preparation tips relevant to the stated medical context. Any "
+                "differences in JSON structure, field names, number of questions, "
+                "exact question phrasing, items to bring, or additional advice are "
+                "all acceptable and do not affect equivalence."
             ),
         )
 
@@ -936,12 +930,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             coach,
             (
-                "Both outputs are valid JSON objects providing educational preventive "
-                "health guidance. Both contain 'overall_priority' (LOW/MODERATE/HIGH), "
-                "'risk_factors_identified', 'lifestyle_recommendations', and 'disclaimer'. "
-                "They are equivalent if they agree on the overall priority level and "
-                "identify the same major risk factor categories. Differences in specific "
-                "tip wording or number of recommendations are acceptable."
+                "Both are valid educational preventive health guidance responses. They "
+                "are equivalent if they agree on the overall health priority level "
+                "(both LOW, both MODERATE, or both HIGH). Any differences in JSON "
+                "structure, field names, which specific risk factors are named, the "
+                "number or wording of lifestyle recommendations, or any other content "
+                "details are all acceptable and do not affect equivalence."
             ),
         )
 
@@ -1060,13 +1054,12 @@ Return ONLY the JSON object, no markdown."""
         result_str = gl.eq_principle.prompt_comparative(
             triage,
             (
-                "Both outputs are valid JSON objects providing educational triage "
-                "guidance. Both contain 'triage_level' (LOW/MODERATE/HIGH/CRITICAL), "
-                "'urgency' (ROUTINE/SOON/URGENT/EMERGENCY), 'care_channel', "
-                "'call_emergency_services' (boolean), and 'disclaimer'. They are "
-                "equivalent if they agree on the triage category and care channel "
-                "recommendation. Emergency cases must both recommend EMERGENCY. "
-                "Differences in phrasing of reasoning or lists are acceptable."
+                "Both are valid educational triage guidance responses. They are "
+                "equivalent if they agree on the overall urgency tier: both low/routine, "
+                "both moderate/soon, both urgent, or both emergency/critical. Any "
+                "differences in JSON structure, field names, care channel details, "
+                "reasoning text, step lists, or specific wording are all acceptable "
+                "and do not affect equivalence."
             ),
         )
 
@@ -1185,13 +1178,11 @@ Return ONLY the JSON object, no markdown."""
         result_str = gl.eq_principle.prompt_comparative(
             answer,
             (
-                "Both outputs are valid JSON objects containing a health education "
-                "response. Both contain 'response' (a non-empty string), "
-                "'is_emergency_query' (boolean), and 'disclaimer'. They are equivalent "
-                "if both respond in the correct language, both address the user's "
-                "question educationally, and both agree on whether the query is "
-                "emergency-level. Minor wording, translation style, or length "
-                "differences are acceptable."
+                "Both are valid educational health query responses. They are equivalent "
+                "if both provide a non-empty educational answer to the user's question "
+                "and both agree on whether the query represents an emergency situation. "
+                "Any differences in response length, wording, language style, JSON "
+                "structure, or additional fields included are all acceptable."
             ),
         )
 
@@ -1310,13 +1301,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             interpret,
             (
-                "Both outputs are valid JSON objects interpreting a health metric trend. "
-                "Both contain 'trend' (IMPROVING/STABLE/WORSENING/FLUCTUATING/INSUFFICIENT_DATA), "
-                "'within_typical_range' (boolean), 'discuss_with_provider' (boolean), "
-                "and 'disclaimer'. They are equivalent if they agree on the overall trend "
-                "direction and on whether provider discussion is warranted. Wording "
-                "differences in description, interpretation, or number of recommendations "
-                "are acceptable."
+                "Both are valid educational health trend interpretations. They are "
+                "equivalent if they agree on the overall trend direction (both "
+                "improving, both stable, both worsening, etc.) and both agree on "
+                "whether the data warrants discussing with a provider. Any differences "
+                "in JSON structure, field names, wording, number of recommendations, "
+                "or specific interpretive comments are all acceptable."
             ),
         )
 
@@ -1442,13 +1432,12 @@ Rules:
         result_str = gl.eq_principle.prompt_comparative(
             route,
             (
-                "Both outputs are valid JSON objects providing care channel routing "
-                "guidance. Both contain 'recommended_channel' (one of: SELF_CARE, "
-                "TELEHEALTH, PRIMARY_CARE, URGENT_CARE, EMERGENCY_ROOM, SPECIALIST), "
-                "'confidence', 'reasoning', and 'disclaimer'. They are equivalent if "
-                "they recommend the same channel or channels at the same level of "
-                "urgency. Emergency cases must both route to EMERGENCY_ROOM. "
-                "Differences in alternative channels listed or phrasing are acceptable."
+                "Both are valid educational care routing responses. They are equivalent "
+                "if they recommend the same level of care urgency: both self-care/home, "
+                "both telehealth/primary care, both urgent care, or both emergency room. "
+                "Any differences in JSON structure, field names, reasoning text, "
+                "confidence scores, alternative channels listed, or specific wording "
+                "are all acceptable and do not affect equivalence."
             ),
         )
 

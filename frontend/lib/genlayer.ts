@@ -3,16 +3,23 @@
 /**
  * Care Bridge — Client-side GenLayer service
  *
- * Users sign their own transactions with their EVM wallet (decrypted in-browser).
- * Flow: write_contract → poll eth_getTransactionByHash → read_contract → return result
+ * Flow for each health analysis:
+ *   1. gen_sendTransaction  → txHash
+ *   2. poll eth_getTransactionByHash every 6s
+ *      → ACCEPTED (validators agreed, result in consensus_data) OR FINALIZED → read result
+ *   3. POST result to backend for storage
  *
- * The backend only stores the finalized result; it never touches private keys.
+ * Users sign with their own EVM wallet. Backend never holds private keys.
  */
 
-const GENLAYER_RPC = "https://studio.genlayer.com/api";
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_ADDRESS || "";
+const GENLAYER_RPC =
+  process.env.NEXT_PUBLIC_GENLAYER_RPC || "https://studio.genlayer.com/api";
 
-// ── RPC helpers ──────────────────────────────────────────────────────────────
+const CONTRACT_ADDRESS =
+  process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_ADDRESS ||
+  "0xd5149cF96bB2A87066c7f95E96e1A1865e0A9AD1";
+
+// ── RPC ───────────────────────────────────────────────────────────────────────
 
 async function rpc(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(GENLAYER_RPC, {
@@ -20,169 +27,228 @@ async function rpc(method: string, params: unknown[]): Promise<unknown> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
   });
+  if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
   return json.result;
 }
 
-// ── Wallet helpers ────────────────────────────────────────────────────────────
+// ── Call encoding ─────────────────────────────────────────────────────────────
 
-export interface WalletKey {
-  address: string;
-  privateKey: string;
-}
-
-/**
- * Decrypt the user's wallet private key from storage.
- * The key was AES-256-GCM encrypted with a key derived from the user's password.
- * The backend `/auth/wallet-key` endpoint returns the decrypted key if the
- * bearer token is valid (avoids sending the password to the backend again).
- *
- * For now we use the wallet address from localStorage and the backend decrypts
- * the key using the session token.
- */
-export async function getWalletKey(apiBase: string, token: string): Promise<WalletKey> {
-  const res = await fetch(`${apiBase}/auth/wallet-key`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error("Could not retrieve wallet key");
-  return res.json();
-}
-
-// ── Signing ───────────────────────────────────────────────────────────────────
-
-/**
- * Encode a GenLayer write_contract call as an eth_sendTransaction payload.
- * GenLayer StudioNet accepts a special transaction format where:
- *   - `to` = contract address
- *   - `data` = ABI-like encoded call: method name + JSON args
- */
 function encodeCall(method: string, args: unknown[]): string {
   const payload = JSON.stringify({ method, args });
-  return "0x" + Buffer.from(payload, "utf8").toString("hex");
+  let hex = "";
+  for (let i = 0; i < payload.length; i++) {
+    hex += payload.charCodeAt(i).toString(16).padStart(2, "0");
+  }
+  return "0x" + hex;
 }
+
+// ── Wallet helpers ────────────────────────────────────────────────────────────
+
+function getStoredWalletAddress(): string {
+  try {
+    const user = JSON.parse(localStorage.getItem("cb_user") || "{}");
+    return user.wallet_address || "";
+  } catch {
+    return "";
+  }
+}
+
+function getStoredPrivateKey(): string {
+  return sessionStorage.getItem("cb_wallet_key") || "";
+}
+
+// ── Send transaction ──────────────────────────────────────────────────────────
 
 async function sendTransaction(
   privateKey: string,
-  to: string,
-  data: string
+  method: string,
+  args: unknown[]
 ): Promise<string> {
-  // Use ethers.js (already a transitive dep via eth-account on backend; here we use window.ethers or dynamic import)
-  // We call the GenLayer RPC with gen_sendTransaction which accepts plaintext call data
-  const result = await rpc("gen_sendTransaction", [
+  const from = getStoredWalletAddress();
+  const data = encodeCall(method, args);
+
+  const txHash = await rpc("gen_sendTransaction", [
     {
-      from_address: await privateKeyToAddress(privateKey),
-      to,
+      from_address: from,
+      to: CONTRACT_ADDRESS,
       data,
-      private_key: privateKey,  // StudioNet accepts the key directly for simplicity
+      value: "0x0",
+      private_key: privateKey,
     },
   ]);
-  return result as string;
-}
 
-async function privateKeyToAddress(privateKey: string): Promise<string> {
-  // Derive address from private key using Web Crypto + secp256k1
-  // For StudioNet we can also pass the address separately
-  // Simple approach: stored in localStorage from login response
-  const user = JSON.parse(localStorage.getItem("cb_user") || "{}");
-  return user.wallet_address || "0x0000000000000000000000000000000000000000";
+  if (typeof txHash !== "string") {
+    throw new Error("gen_sendTransaction returned unexpected value: " + JSON.stringify(txHash));
+  }
+  return txHash;
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────────
 
-const TERMINAL_FAIL = new Set(["UNDETERMINED", "CANCELED", "VALIDATORS_TIMEOUT", "LEADER_TIMEOUT"]);
+const TERMINAL_FAIL = new Set([
+  "UNDETERMINED",
+  "CANCELED",
+  "VALIDATORS_TIMEOUT",
+  "LEADER_TIMEOUT",
+]);
 
-export async function pollFinalized(
+export interface PollResult {
+  status: string;
+  consensusData: Record<string, unknown> | null;
+}
+
+/**
+ * Poll until the tx reaches ACCEPTED or FINALIZED.
+ * Both states mean validators have agreed — result is in consensus_data.
+ * ACCEPTED is readable immediately; FINALIZED is the fully committed state.
+ */
+export async function pollTransaction(
   txHash: string,
-  onStatus?: (s: string) => void,
-  timeoutMs = 180_000
-): Promise<boolean> {
+  onStatus?: (status: string) => void,
+  timeoutMs = 600_000
+): Promise<PollResult> {
   const deadline = Date.now() + timeoutMs;
+
   while (Date.now() < deadline) {
     await sleep(6000);
     try {
-      const tx = (await rpc("eth_getTransactionByHash", [txHash])) as Record<string, string> | null;
+      const tx = (await rpc("eth_getTransactionByHash", [txHash])) as Record<string, unknown> | null;
       if (!tx) continue;
-      const status = (tx.status || "").toUpperCase();
+
+      const status = ((tx.status as string) || "PENDING").toUpperCase();
       onStatus?.(status);
-      if (status === "FINALIZED") return true;
-      if (TERMINAL_FAIL.has(status)) return false;
+
+      if (status === "FINALIZED" || status === "ACCEPTED") {
+        // Extract consensus result from the transaction
+        const consensusData = extractConsensusData(tx);
+        return { status, consensusData };
+      }
+
+      if (TERMINAL_FAIL.has(status)) {
+        return { status, consensusData: null };
+      }
     } catch {
       // transient network error — keep polling
     }
   }
-  return false;
+
+  return { status: "TIMEOUT", consensusData: null };
 }
+
+/**
+ * Pull the consensus result out of the transaction object.
+ * GenLayer stores the AI consensus result in consensus_data (or result field).
+ */
+function extractConsensusData(tx: Record<string, unknown>): Record<string, unknown> | null {
+  // Try known locations in the tx object
+  const candidates = [
+    tx.consensus_data,
+    tx.result,
+    tx.output,
+    (tx as any)?.consensus?.result,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const parsed = parseResult(candidate);
+    if (Object.keys(parsed).length > 0) return parsed;
+  }
+
+  // If the tx itself contains useful fields, return the whole tx minus internals
+  const { hash, nonce, blockHash, blockNumber, transactionIndex, from, to, value, gas, gasPrice, input, v, r, s, status, ...rest } = tx as any;
+  if (Object.keys(rest).length > 0) return rest;
+
+  return null;
+}
+
+// ── Read contract (for getter methods) ───────────────────────────────────────
+
+export async function readContractView(
+  method: string,
+  args: unknown[]
+): Promise<Record<string, unknown>> {
+  const data = encodeCall(method, args);
+  const raw = await rpc("gen_call", [
+    {
+      to: CONTRACT_ADDRESS,
+      data,
+      from_address: getStoredWalletAddress() || CONTRACT_ADDRESS,
+    },
+  ]);
+  return parseResult(raw);
+}
+
+// ── Result parsing ────────────────────────────────────────────────────────────
+
+function parseResult(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw === "string") {
+    // Strip markdown code fences
+    const text = raw.replace(/```[a-z]*/g, "").replace(/```/g, "").trim();
+    try { return JSON.parse(text); } catch { /* fall */ }
+    // Try to extract embedded JSON object
+    const s = text.indexOf("{");
+    const e = text.lastIndexOf("}") + 1;
+    if (s !== -1 && e > s) {
+      try { return JSON.parse(text.slice(s, e)); } catch { /* fall */ }
+    }
+    return { raw_text: text };
+  }
+  return {};
+}
+
+// ── Core write-poll-read flow ─────────────────────────────────────────────────
+
+export interface OnChainResult {
+  txHash: string;
+  result: Record<string, unknown>;
+  status: string;
+  finalized: boolean;
+}
+
+async function writeContract(
+  method: string,
+  args: unknown[],
+  onStatus?: (status: string) => void
+): Promise<OnChainResult> {
+  const privateKey = getStoredPrivateKey();
+  if (!privateKey) throw new Error("Wallet not unlocked. Please log in again.");
+
+  onStatus?.("SUBMITTING");
+  const txHash = await sendTransaction(privateKey, method, args);
+
+  onStatus?.("PENDING");
+  const { status, consensusData } = await pollTransaction(txHash, onStatus);
+
+  const finalized = status === "FINALIZED" || status === "ACCEPTED";
+
+  return {
+    txHash,
+    result: consensusData || {},
+    status,
+    finalized,
+  };
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// ── Read contract ─────────────────────────────────────────────────────────────
-
-export async function readContract(method: string, args: unknown[]): Promise<unknown> {
-  return rpc("gen_call", [
-    {
-      to: CONTRACT_ADDRESS,
-      data: encodeCall(method, args),
-    },
-  ]);
+async function sha256(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-// ── Write + poll + read ───────────────────────────────────────────────────────
-
-export interface OnChainResult {
-  txHash: string;
-  result: Record<string, unknown>;
-  finalized: boolean;
-}
-
-async function writeAndRead(
-  privateKey: string,
-  writeMethod: string,
-  writeArgs: unknown[],
-  readMethod: string,
-  readArgs: unknown[],
-  onStatus?: (s: string) => void
-): Promise<OnChainResult> {
-  if (!CONTRACT_ADDRESS) throw new Error("NEXT_PUBLIC_GENLAYER_CONTRACT_ADDRESS not set");
-
-  const data = encodeCall(writeMethod, writeArgs);
-  const txHash = await sendTransaction(privateKey, CONTRACT_ADDRESS, data);
-
-  const finalized = await pollFinalized(txHash, onStatus);
-  let result: Record<string, unknown> = {};
-
-  if (finalized) {
-    try {
-      const raw = await readContract(readMethod, readArgs);
-      result = parseResult(raw);
-    } catch {
-      result = { error: "Read failed after finalization" };
-    }
-  }
-
-  return { txHash, result, finalized };
-}
-
-function parseResult(raw: unknown): Record<string, unknown> {
-  if (raw && typeof raw === "object") return raw as Record<string, unknown>;
-  if (typeof raw === "string") {
-    const text = raw.replace(/```[a-z]*/g, "").replace(/```/g, "").trim();
-    try { return JSON.parse(text); } catch { /* fall */ }
-    const s = text.indexOf("{"), e = text.lastIndexOf("}") + 1;
-    if (s !== -1 && e > s) {
-      try { return JSON.parse(text.slice(s, e)); } catch { /* fall */ }
-    }
-    return { raw };
-  }
-  return {};
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public health analysis functions ─────────────────────────────────────────
 
 export async function analyzeSymptoms(
-  privateKey: string,
   userRef: string,
   symptoms: unknown[],
   context: Record<string, unknown>,
@@ -193,18 +259,14 @@ export async function analyzeSymptoms(
   const contextJson = JSON.stringify(context);
   const payloadHash = await sha256(`${recordId}:${userRef}:${symptomsJson}`);
 
-  return writeAndRead(
-    privateKey,
+  return writeContract(
     "analyze_symptoms",
     [recordId, userRef, symptomsJson, contextJson, payloadHash],
-    "get_symptom_analysis",
-    [recordId],
     onStatus
   );
 }
 
 export async function analyzeLabResults(
-  privateKey: string,
   userRef: string,
   markers: unknown[],
   context: Record<string, unknown>,
@@ -215,18 +277,14 @@ export async function analyzeLabResults(
   const contextJson = JSON.stringify(context);
   const payloadHash = await sha256(`${recordId}:${userRef}:${markersJson}`);
 
-  return writeAndRead(
-    privateKey,
+  return writeContract(
     "analyze_lab_results",
     [recordId, userRef, markersJson, contextJson, payloadHash],
-    "get_lab_analysis",
-    [recordId],
     onStatus
   );
 }
 
 export async function analyzeMedications(
-  privateKey: string,
   userRef: string,
   medications: string[],
   onStatus?: (s: string) => void
@@ -235,18 +293,14 @@ export async function analyzeMedications(
   const medsJson = JSON.stringify(medications);
   const payloadHash = await sha256(`${recordId}:${userRef}:${medsJson}`);
 
-  return writeAndRead(
-    privateKey,
+  return writeContract(
     "explain_medications",
     [recordId, userRef, medsJson, "{}", payloadHash],
-    "get_medication_analysis",
-    [recordId],
     onStatus
   );
 }
 
 export async function summarizeReport(
-  privateKey: string,
   userRef: string,
   reportText: string,
   reportType: string,
@@ -255,18 +309,14 @@ export async function summarizeReport(
   const recordId = crypto.randomUUID().replace(/-/g, "");
   const payloadHash = await sha256(`${recordId}:${userRef}:${reportText.slice(0, 200)}`);
 
-  return writeAndRead(
-    privateKey,
+  return writeContract(
     "summarize_report",
     [recordId, userRef, reportText, reportType, payloadHash],
-    "get_report_summary",
-    [recordId],
     onStatus
   );
 }
 
 export async function triagePatient(
-  privateKey: string,
   userRef: string,
   inputData: Record<string, unknown>,
   onStatus?: (s: string) => void
@@ -275,21 +325,89 @@ export async function triagePatient(
   const inputJson = JSON.stringify(inputData);
   const payloadHash = await sha256(`${recordId}:${userRef}:${inputJson.slice(0, 200)}`);
 
-  return writeAndRead(
-    privateKey,
+  return writeContract(
     "triage_patient",
     [recordId, userRef, inputJson, payloadHash],
-    "get_triage",
-    [recordId],
     onStatus
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+export async function prepareDoctorVisit(
+  userRef: string,
+  inputData: Record<string, unknown>,
+  onStatus?: (s: string) => void
+): Promise<OnChainResult> {
+  const recordId = crypto.randomUUID().replace(/-/g, "");
+  const inputJson = JSON.stringify(inputData);
+  const payloadHash = await sha256(`${recordId}:${userRef}:${inputJson.slice(0, 200)}`);
 
-async function sha256(input: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return writeContract(
+    "prepare_doctor_visit",
+    [recordId, userRef, inputJson, payloadHash],
+    onStatus
+  );
+}
+
+export async function interpretHealthTrend(
+  userRef: string,
+  inputData: Record<string, unknown>,
+  onStatus?: (s: string) => void
+): Promise<OnChainResult> {
+  const recordId = crypto.randomUUID().replace(/-/g, "");
+  const inputJson = JSON.stringify(inputData);
+  const payloadHash = await sha256(`${recordId}:${userRef}:${inputJson.slice(0, 200)}`);
+
+  return writeContract(
+    "interpret_health_trend",
+    [recordId, userRef, inputJson, payloadHash],
+    onStatus
+  );
+}
+
+export async function preventionPlan(
+  userRef: string,
+  inputData: Record<string, unknown>,
+  onStatus?: (s: string) => void
+): Promise<OnChainResult> {
+  const recordId = crypto.randomUUID().replace(/-/g, "");
+  const inputJson = JSON.stringify(inputData);
+  const payloadHash = await sha256(`${recordId}:${userRef}:${inputJson.slice(0, 200)}`);
+
+  return writeContract(
+    "create_prevention_plan",
+    [recordId, userRef, inputJson, payloadHash],
+    onStatus
+  );
+}
+
+export async function answerHealthQuery(
+  userRef: string,
+  question: string,
+  language: string,
+  onStatus?: (s: string) => void
+): Promise<OnChainResult> {
+  const recordId = crypto.randomUUID().replace(/-/g, "");
+  const payloadHash = await sha256(`${recordId}:${userRef}:${question.slice(0, 200)}`);
+
+  return writeContract(
+    "answer_health_query",
+    [recordId, userRef, question, language, payloadHash],
+    onStatus
+  );
+}
+
+export async function routeToCare(
+  userRef: string,
+  inputData: Record<string, unknown>,
+  onStatus?: (s: string) => void
+): Promise<OnChainResult> {
+  const recordId = crypto.randomUUID().replace(/-/g, "");
+  const inputJson = JSON.stringify(inputData);
+  const payloadHash = await sha256(`${recordId}:${userRef}:${inputJson.slice(0, 200)}`);
+
+  return writeContract(
+    "route_to_care",
+    [recordId, userRef, inputJson, payloadHash],
+    onStatus
+  );
 }

@@ -18,7 +18,8 @@ export function useGenLayerTx() {
     const txHash = await client.writeContract({
       address: contractAddress as `0x${string}`,
       functionName,
-      args,
+      args: args as any,
+      value: BigInt(0),
     });
 
     if (!txHash) throw new Error("No transaction hash returned from GenLayer");

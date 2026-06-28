@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   HeartPulse, LayoutDashboard, Microscope, Activity, LineChart,
   FileText, Pill, Stethoscope, AlertTriangle, Settings, LogOut,
-  Wallet, ChevronRight
+  Wallet, TrendingUp, MessageCircle, Heart, MapPin, ShieldCheck
 } from "lucide-react";
 
 const nav = [
@@ -18,6 +18,10 @@ const nav = [
   { href: "/medications", icon: Pill, label: "Medications" },
   { href: "/doctor-visit", icon: Stethoscope, label: "Doctor Visit" },
   { href: "/triage", icon: AlertTriangle, label: "Health Triage" },
+  { href: "/prevention", icon: Heart, label: "Prevention Plan" },
+  { href: "/health-query", icon: MessageCircle, label: "Health Q&A" },
+  { href: "/health-trend", icon: TrendingUp, label: "Trend Interpreter" },
+  { href: "/route-to-care", icon: MapPin, label: "Route to Care" },
 ];
 
 const secondaryNav = [
@@ -30,13 +34,11 @@ export function Sidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-gray-100 flex flex-col">
+    <aside className="w-64 h-screen sticky top-0 bg-white border-r border-gray-100 flex flex-col shrink-0">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-            <HeartPulse className="w-5 h-5 text-white" />
-          </div>
+        <div className="flex items-center gap-2.5">
+          <img src="/logo.png" alt="Care Bridge" className="w-8 h-8 object-contain" />
           <span className="font-bold text-gray-900">Care Bridge</span>
         </div>
       </div>
@@ -80,6 +82,20 @@ export function Sidebar() {
             {label}
           </Link>
         ))}
+
+        {user?.role === "admin" && (
+          <>
+            <div className="pt-4 pb-2">
+              <p className="px-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Admin</p>
+            </div>
+            <Link href="/admin"
+              className={cn("sidebar-link", pathname === "/admin" && "active", "text-indigo-600 hover:bg-indigo-50")}
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              Admin Panel
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Logout */}

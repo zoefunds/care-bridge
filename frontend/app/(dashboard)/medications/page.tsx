@@ -1,14 +1,26 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { healthApi } from "@/lib/api";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { Pill, Plus, X, Loader2, Shield, AlertTriangle } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
+import { AnalysisHistory } from "@/components/ui/AnalysisHistory";
 
 export default function MedicationsPage() {
   const [input, setInput] = useState("");
   const [medications, setMedications] = useState<string[]>([]);
   const gl = useAnalysis();
+  const [medHistory, setMedHistory] = useState<any[]>([]);
+  const [medHistoryLoading, setMedHistoryLoading] = useState(true);
+  const [historyKey, setHistoryKey] = useState(0);
+
+  useEffect(() => {
+    healthApi.listMedications().then((r) => setMedHistory(r.data)).catch(() => {}).finally(() => setMedHistoryLoading(false));
+  }, [historyKey]);
+
+  useEffect(() => {
+    if (gl.status === "complete") setHistoryKey((k) => k + 1);
+  }, [gl.status]);
 
   const add = () => {
     const m = input.trim();
@@ -179,6 +191,24 @@ export default function MedicationsPage() {
           </button>
         </div>
       )}
+
+      <AnalysisHistory
+        items={medHistory.map((m) => ({ ...m, label: m.medication_name || "Medications" }))}
+        loading={medHistoryLoading}
+        title="Past medication analyses"
+        renderResult={(result) => {
+          const risk = result?.overall_interaction_risk || result?.overall_risk;
+          const meds: any[] = result?.medications || result?.analysis?.medications || [];
+          return (
+            <div>
+              {risk && <p className={`text-xs font-semibold mb-1 ${risk === "HIGH" ? "text-red-600" : risk === "MODERATE" ? "text-amber-600" : "text-green-600"}`}>Interaction risk: {risk}</p>}
+              {meds.slice(0, 2).map((m: any, i: number) => (
+                <p key={i} className="text-sm text-gray-700">• {m.name || m.medication_name} {m.purpose ? `— ${m.purpose}` : ""}</p>
+              ))}
+            </div>
+          );
+        }}
+      />
     </div>
   );
 }

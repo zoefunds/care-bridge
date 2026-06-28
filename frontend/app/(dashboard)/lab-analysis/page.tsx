@@ -4,6 +4,7 @@ import { healthApi } from "@/lib/api";
 import { getRiskColor, getRiskLabel, formatDate } from "@/lib/utils";
 import { Microscope, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { PageHero } from "@/components/ui/PageHero";
 
 export default function LabAnalysisPage() {
   const [labs, setLabs] = useState<any[]>([]);
@@ -15,16 +16,19 @@ export default function LabAnalysisPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Lab Analysis</h1>
-          <p className="text-gray-500 text-sm mt-0.5">GenLayer-verified biomarker interpretation</p>
-        </div>
-        <Link href="/lab-analysis/upload"
-          className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
-          <Plus className="w-4 h-4" /> Upload Report
-        </Link>
-      </div>
+      <PageHero
+        image="https://images.unsplash.com/photo-1579154204601-01588f351e67?w=1800&q=80&fit=crop"
+        accent="bg-cyan-500"
+        tag="Biomarker Analysis"
+        title="Lab Analysis"
+        subtitle="GenLayer-verified biomarker interpretation — your lab results decoded by AI consensus"
+        action={
+          <Link href="/lab-analysis/upload"
+            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur text-white text-sm font-semibold px-5 py-2.5 rounded-xl border border-white/30 transition-colors">
+            <Plus className="w-4 h-4" /> Upload Report
+          </Link>
+        }
+      />
 
       {loading ? (
         <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>

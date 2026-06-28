@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { healthApi } from "@/lib/api";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { getRiskColor, getRiskLabel } from "@/lib/utils";
 import { Activity, Plus, X, Loader2, Shield, AlertTriangle } from "lucide-react";
 import { PageHero } from "@/components/ui/PageHero";
+import { AnalysisHistory } from "@/components/ui/AnalysisHistory";
 
 export default function SymptomsPage() {
   const [symptomInput, setSymptomInput] = useState("");
@@ -12,6 +13,17 @@ export default function SymptomsPage() {
   const [duration, setDuration] = useState("");
   const [severity, setSeverity] = useState("");
   const gl = useAnalysis();
+  const [symHistory, setSymHistory] = useState<any[]>([]);
+  const [symHistoryLoading, setSymHistoryLoading] = useState(true);
+  const [historyKey, setHistoryKey] = useState(0);
+
+  useEffect(() => {
+    healthApi.listSymptoms().then((r) => setSymHistory(r.data)).catch(() => {}).finally(() => setSymHistoryLoading(false));
+  }, [historyKey]);
+
+  useEffect(() => {
+    if (gl.status === "complete") setHistoryKey((k) => k + 1);
+  }, [gl.status]);
 
   const addSymptom = () => {
     const s = symptomInput.trim();
@@ -212,6 +224,21 @@ export default function SymptomsPage() {
           </button>
         </div>
       )}
+
+      <AnalysisHistory
+        items={symHistory}
+        loading={symHistoryLoading}
+        title="Past symptom analyses"
+        renderResult={(result) => {
+          const level = result?.triage_level || result?.overall_risk || result?.risk_level;
+          return (
+            <div>
+              {level && <p className="text-sm font-medium text-gray-700">{getRiskLabel(level)}</p>}
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{result?.summary || result?.care_recommendation || ""}</p>
+            </div>
+          );
+        }}
+      />
     </div>
   );
 }

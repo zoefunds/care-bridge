@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { PageHero } from "@/components/ui/PageHero";
 
 const METRICS = ["glucose", "cholesterol", "blood_pressure_systolic", "blood_pressure_diastolic", "heart_rate", "weight", "bmi"];
 
@@ -27,16 +28,19 @@ export default function TimelinePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Health Timeline</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Track and visualize your health metrics over time</p>
-        </div>
-        <Link href="/timeline/add"
-          className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl">
-          <Plus className="w-4 h-4" /> Add Entry
-        </Link>
-      </div>
+      <PageHero
+        image="https://images.unsplash.com/photo-1628348068343-c6a848d2b6dd?w=1800&q=80&fit=crop"
+        accent="bg-teal-500"
+        tag="Health Metrics"
+        title="Health Timeline"
+        subtitle="Track and visualize your health metrics over time with interactive charts"
+        action={
+          <Link href="/timeline/add"
+            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur text-white text-sm font-semibold px-5 py-2.5 rounded-xl border border-white/30 transition-colors">
+            <Plus className="w-4 h-4" /> Add Entry
+          </Link>
+        }
+      />
 
       {/* Metric selector */}
       <div className="flex gap-2 flex-wrap">

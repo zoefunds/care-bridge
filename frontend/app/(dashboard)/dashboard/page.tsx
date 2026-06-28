@@ -5,6 +5,7 @@ import { healthApi } from "@/lib/api";
 import { getRiskColor, getRiskLabel, formatDate } from "@/lib/utils";
 import { Activity, Microscope, Pill, FileText, ArrowRight, Zap, Shield } from "lucide-react";
 import Link from "next/link";
+import { PageHero } from "@/components/ui/PageHero";
 
 const quickActions = [
   { href: "/lab-analysis/upload", icon: Microscope, label: "Upload Lab Report", color: "from-sky-500 to-cyan-400" },
@@ -34,13 +35,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {greeting()}, {user?.full_name?.split(" ")[0] || "there"} 👋
-        </h1>
-        <p className="text-gray-500 mt-1">Your health intelligence dashboard</p>
-      </div>
+      <PageHero
+        image="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1800&q=80&fit=crop"
+        accent="bg-sky-500"
+        tag="Health Intelligence"
+        title={`${greeting()}, ${user?.full_name?.split(" ")[0] || "there"}`}
+        subtitle="Your GenLayer-verified health dashboard — all analyses backed by multi-validator AI consensus"
+      />
 
       {/* Disclaimer */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">

@@ -9,10 +9,16 @@ export function useAuth() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = getToken();
-    const u = getUser();
-    if (token && u) setUser(u);
-    setLoading(false);
+    const sync = () => {
+      const token = getToken();
+      const u = getUser();
+      if (token && u) setUser(u);
+      else setUser(null);
+      setLoading(false);
+    };
+    sync();
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
   }, []);
 
   const logout = () => {

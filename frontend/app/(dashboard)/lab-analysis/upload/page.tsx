@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
 import { healthApi } from "@/lib/api";
@@ -7,6 +7,8 @@ import { useAnalysis } from "@/hooks/useAnalysis";
 import { Upload, Loader2, CheckCircle2, AlertCircle, ArrowLeft, Plus, X, PenLine } from "lucide-react";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
+import { AnalysisHistory } from "@/components/ui/AnalysisHistory";
+import { getRiskLabel } from "@/lib/utils";
 
 type Marker = { name: string; value: string; unit: string; reference_range: string };
 type Tab = "upload" | "manual";
@@ -22,6 +24,17 @@ export default function UploadLabPage() {
   const [context, setContext] = useState("");
   const [manualError, setManualError] = useState("");
   const gl = useAnalysis();
+  const [labHistory, setLabHistory] = useState<any[]>([]);
+  const [labHistoryLoading, setLabHistoryLoading] = useState(true);
+  const [historyKey, setHistoryKey] = useState(0);
+
+  useEffect(() => {
+    healthApi.getLabs().then((r) => setLabHistory(r.data)).catch(() => {}).finally(() => setLabHistoryLoading(false));
+  }, [historyKey]);
+
+  useEffect(() => {
+    if (gl.status === "complete") setHistoryKey((k) => k + 1);
+  }, [gl.status]);
 
   const onDrop = useCallback((accepted: File[]) => { if (accepted[0]) setFile(accepted[0]); }, []);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -205,6 +218,27 @@ export default function UploadLabPage() {
           )}
         </>
       )}
+
+      <AnalysisHistory
+        items={(labHistory || []).map((l: any) => ({
+          id: l.id,
+          status: l.status,
+          created_at: l.created_at,
+          tx_hash: l.genlayer_tx_hash,
+          result: l.consensus_output,
+        }))}
+        loading={labHistoryLoading}
+        title="Past lab analyses"
+        renderResult={(result) => {
+          const level = result?.risk_level || result?.overall_risk;
+          return (
+            <div>
+              {level && <p className="text-sm font-medium text-gray-700">{getRiskLabel(level)}</p>}
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{result?.summary || result?.interpretation || ""}</p>
+            </div>
+          );
+        }}
+      />
     </div>
   );
 }

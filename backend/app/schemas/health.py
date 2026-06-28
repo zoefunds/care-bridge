@@ -79,6 +79,12 @@ class TriageRequest(BaseModel):
     genlayer_result: dict[str, Any] | None = None
 
 
+class GenericHealthRequest(BaseModel):
+    tx_hash: str | None = None
+    genlayer_result: dict[str, Any] | None = None
+    data: dict[str, Any] | None = None
+
+
 class AnalysisResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

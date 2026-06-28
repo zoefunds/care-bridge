@@ -39,6 +39,7 @@ class User(Base):
     timeline_entries: Mapped[list["HealthTimeline"]] = relationship(back_populates="user")
     medications: Mapped[list["Medication"]] = relationship(back_populates="user")
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="user")
+    analysis_jobs: Mapped[list["AnalysisJob"]] = relationship(back_populates="user")
 
 
 class Wallet(Base):
@@ -140,6 +141,7 @@ class SymptomAnalysis(Base):
     risk_level: Mapped[str | None] = mapped_column(String(10))
     severity_level: Mapped[str | None] = mapped_column(String(20))
     care_recommendation: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -175,10 +177,29 @@ class Medication(Base):
     medication_name: Mapped[str] = mapped_column(String(500), nullable=False)
     genlayer_tx_hash: Mapped[str | None] = mapped_column(String(66))
     consensus_output: Mapped[dict | None] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"] = relationship(back_populates="medications")
+
+
+class AnalysisJob(Base):
+    """Generic background job store for all sync-converted GenLayer endpoints."""
+    __tablename__ = "analysis_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    genlayer_tx_hash: Mapped[str | None] = mapped_column(String(66))
+    result: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped["User"] = relationship(back_populates="analysis_jobs")
 
 
 class AuditLog(Base):

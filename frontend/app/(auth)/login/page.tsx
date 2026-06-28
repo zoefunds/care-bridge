@@ -31,6 +31,8 @@ export default function LoginPage() {
     setError("");
     try {
       const res = await authApi.login(data);
+      // Save token FIRST so the axios interceptor includes it in the /me request
+      localStorage.setItem("cb_token", res.data.access_token);
       const me = await authApi.me();
       const walletBundle = res.data.wallet_encrypted_key
         ? {

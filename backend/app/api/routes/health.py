@@ -317,6 +317,17 @@ async def submit_symptom_tx(
     return {"status": "polling"}
 
 
+@router.get("/symptoms")
+async def list_symptom_analyses(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(SymptomAnalysis).where(SymptomAnalysis.user_id == user.id)
+        .order_by(desc(SymptomAnalysis.created_at)).limit(50)
+    )
+    rows = result.scalars().all()
+    return [{"id": str(r.id), "status": r.status, "tx_hash": r.genlayer_tx_hash,
+             "result": r.consensus_output, "created_at": r.created_at} for r in rows]
+
+
 @router.get("/symptoms/{analysis_id}")
 async def get_symptom_analysis(
     analysis_id: UUID,
@@ -427,6 +438,18 @@ async def submit_medication_tx(
     return {"status": "polling"}
 
 
+@router.get("/medications")
+async def list_medications(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Medication).where(Medication.user_id == user.id)
+        .order_by(desc(Medication.created_at)).limit(50)
+    )
+    rows = result.scalars().all()
+    return [{"id": str(r.id), "status": r.status, "tx_hash": r.genlayer_tx_hash,
+             "result": r.consensus_output, "medication_name": r.medication_name,
+             "created_at": r.created_at} for r in rows]
+
+
 @router.get("/medications/{med_id}")
 async def get_medication(
     med_id: UUID,
@@ -467,6 +490,32 @@ def _make_job(user_id, job_type: str, args: list, record_id: str) -> AnalysisJob
         result={"record_id": record_id, "args": args},
         created_at=datetime.now(timezone.utc),
     )
+
+
+@router.get("/jobs")
+async def list_analysis_jobs(
+    job_type: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(AnalysisJob).where(AnalysisJob.user_id == user.id)
+    if job_type:
+        query = query.where(AnalysisJob.job_type == job_type)
+    query = query.order_by(desc(AnalysisJob.created_at)).limit(50)
+    result = await db.execute(query)
+    rows = result.scalars().all()
+    return [
+        {
+            "id": str(r.id),
+            "job_type": r.job_type,
+            "status": r.status,
+            "tx_hash": r.genlayer_tx_hash,
+            "result": {k: v for k, v in (r.result or {}).items() if k not in ("record_id", "args")}
+                      if r.status == "complete" else None,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/jobs/{job_id}")
