@@ -70,9 +70,15 @@ export function AnalysisHistory({ items, loading, title = "Past analyses", rende
             {expanded === item.id && (
               <div className="border-t border-gray-100 px-5 py-4 space-y-3">
                 {item.tx_hash && (
-                  <p className="text-xs font-mono text-green-600 break-all">
+                  <a
+                    href={`https://explorer-studio.genlayer.com/tx/${item.tx_hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-mono text-green-600 break-all hover:text-green-700 hover:underline flex items-start gap-1"
+                  >
                     ✓ tx: {item.tx_hash}
-                  </p>
+                    <ExternalLink className="w-3 h-3 shrink-0 mt-0.5" />
+                  </a>
                 )}
                 {item.status === "complete" && item.result
                   ? renderResult(item.result, item)

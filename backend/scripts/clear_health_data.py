@@ -7,6 +7,7 @@ import asyncio
 import asyncpg
 
 TABLES = [
+    "analysis_jobs",
     "lab_analyses",
     "symptom_analyses",
     "health_timeline",
