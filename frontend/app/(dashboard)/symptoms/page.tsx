@@ -1,17 +1,17 @@
 "use client";
 import { useState } from "react";
 import { healthApi } from "@/lib/api";
+import { useAnalysis } from "@/hooks/useAnalysis";
 import { getRiskColor, getRiskLabel } from "@/lib/utils";
 import { Activity, Plus, X, Loader2, Shield, AlertTriangle } from "lucide-react";
+import { PageHero } from "@/components/ui/PageHero";
 
 export default function SymptomsPage() {
   const [symptomInput, setSymptomInput] = useState("");
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [duration, setDuration] = useState("");
   const [severity, setSeverity] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState("");
+  const gl = useAnalysis();
 
   const addSymptom = () => {
     const s = symptomInput.trim();
@@ -21,31 +21,27 @@ export default function SymptomsPage() {
     }
   };
 
-  const removeSymptom = (s: string) => setSymptoms(symptoms.filter((x) => x !== s));
-
   const handleAnalyze = async () => {
     if (symptoms.length === 0) return;
-    setLoading(true);
-    setError("");
-    setResult(null);
-    try {
-      const res = await healthApi.analyzeSymptoms({ symptoms, duration, severity });
-      setResult(res.data);
-    } catch (e: any) {
-      setError(e.response?.data?.detail || "Analysis failed");
-    } finally {
-      setLoading(false);
-    }
+    await gl.runJob(() =>
+      healthApi.analyzeSymptoms({ symptoms: symptoms.map((s) => ({ name: s })), duration, severity })
+    );
   };
+
+  const r = gl.result as any;
+  const analysis = r?.consensus_output?.analysis || r?.analysis || r;
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Symptom Intelligence</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Enter your symptoms for multi-model consensus assessment</p>
-      </div>
+      <PageHero
+        image="https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=1800&q=80&fit=crop"
+        accent="bg-violet-500"
+        tag="AI Symptom Check"
+        title="Symptom Intelligence"
+        subtitle="Enter your symptoms for multi-validator AI consensus assessment powered by GenLayer"
+      />
 
-      {!result ? (
+      {!gl.result ? (
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
             <div>
@@ -59,7 +55,7 @@ export default function SymptomsPage() {
                   className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
                 />
                 <button onClick={addSymptom}
-                  className="px-4 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl transition-colors">
+                  className="px-4 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -68,7 +64,7 @@ export default function SymptomsPage() {
                   {symptoms.map((s) => (
                     <span key={s} className="flex items-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 text-sm px-3 py-1.5 rounded-full">
                       {s}
-                      <button onClick={() => removeSymptom(s)} className="hover:text-sky-900">
+                      <button onClick={() => setSymptoms(symptoms.filter((x) => x !== s))}>
                         <X className="w-3 h-3" />
                       </button>
                     </span>
@@ -104,27 +100,39 @@ export default function SymptomsPage() {
             </div>
           </div>
 
-          {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">{error}</div>}
+          {gl.error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">{gl.error}</div>}
 
-          <button onClick={handleAnalyze} disabled={loading || symptoms.length === 0}
+          {gl.loading && (
+            <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sky-700 text-sm flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              <span>{gl.statusLabel}</span>
+            </div>
+          )}
+
+          <button onClick={handleAnalyze} disabled={gl.loading || symptoms.length === 0}
             className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-60 text-white font-semibold rounded-xl flex items-center justify-center gap-2">
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Analyzing with GenLayer validators..." : `Analyze ${symptoms.length} symptom${symptoms.length !== 1 ? "s" : ""}`}
+            {gl.loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {gl.loading ? gl.statusLabel : `Analyze ${symptoms.length} symptom${symptoms.length !== 1 ? "s" : ""} on-chain`}
           </button>
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Risk level */}
-          <div className={`rounded-2xl p-6 border ${getRiskColor(result.risk_level)}`}>
+          {gl.txHash && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700 font-mono break-all">
+              ✓ On-chain tx: {gl.txHash}
+            </div>
+          )}
+
+          <div className={`rounded-2xl p-6 border ${getRiskColor(analysis?.risk_level || analysis?.overall_risk)}`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Triage Guidance</p>
-                <p className="text-2xl font-bold mt-1">{getRiskLabel(result.risk_level)}</p>
-                {result.care_recommendation && (
-                  <p className="mt-2 text-sm opacity-80">{result.care_recommendation}</p>
+                <p className="text-2xl font-bold mt-1">{getRiskLabel(analysis?.risk_level || analysis?.overall_risk)}</p>
+                {(analysis?.care_recommendation || analysis?.immediate_action) && (
+                  <p className="mt-2 text-sm opacity-80">{analysis?.care_recommendation || analysis?.immediate_action}</p>
                 )}
               </div>
-              {result.emergency_flag && (
+              {(analysis?.emergency_flag || analysis?.is_emergency) && (
                 <div className="bg-red-100 border border-red-200 rounded-xl p-3">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
@@ -132,21 +140,36 @@ export default function SymptomsPage() {
             </div>
           </div>
 
-          {result.emergency_flag && (
-            <div className="bg-red-600 text-white rounded-xl p-4 font-semibold text-center">
-              ⚠️ Seek emergency medical care immediately
+          {(analysis?.possible_conditions || analysis?.differential_diagnoses)?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Possible conditions to discuss with a doctor</h3>
+              <ul className="space-y-1.5">
+                {(analysis?.possible_conditions || analysis?.differential_diagnoses).map((c: any, i: number) => (
+                  <li key={i} className="text-sm text-gray-700">• {typeof c === "string" ? c : c.condition || c.name}</li>
+                ))}
+              </ul>
             </div>
           )}
 
-          {result.consensus_output?.warning_signs?.length > 0 && (
+          {(analysis?.warning_signs || analysis?.red_flags)?.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="font-semibold text-gray-900 mb-3">Warning signs to watch for</h3>
               <ul className="space-y-1.5">
-                {result.consensus_output.warning_signs.map((w: string, i: number) => (
+                {(analysis?.warning_signs || analysis?.red_flags).map((w: string, i: number) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                    {w}
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" /> {w}
                   </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {(analysis?.recommendations || analysis?.self_care)?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Recommendations</h3>
+              <ul className="space-y-1.5">
+                {(analysis?.recommendations || analysis?.self_care).map((r: string, i: number) => (
+                  <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-sky-500">→</span> {r}</li>
                 ))}
               </ul>
             </div>
@@ -154,11 +177,11 @@ export default function SymptomsPage() {
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
             <Shield className="inline w-4 h-4 mr-1 mb-0.5" />
-            This is educational guidance only. Not a diagnosis. Always consult a healthcare provider.
+            {analysis?.disclaimer || "Educational guidance only. Not a diagnosis. Always consult a healthcare provider."}
           </div>
 
-          <button onClick={() => { setResult(null); setSymptoms([]); }}
-            className="w-full py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-sm font-medium transition-colors">
+          <button onClick={() => { gl.reset(); setSymptoms([]); }}
+            className="w-full py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-sm font-medium">
             Analyze new symptoms
           </button>
         </div>

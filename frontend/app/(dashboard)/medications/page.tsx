@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { healthApi } from "@/lib/api";
+import { useAnalysis } from "@/hooks/useAnalysis";
 import { Pill, Plus, X, Loader2, Shield, AlertTriangle } from "lucide-react";
+import { PageHero } from "@/components/ui/PageHero";
 
 export default function MedicationsPage() {
   const [input, setInput] = useState("");
   const [medications, setMedications] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState("");
+  const gl = useAnalysis();
 
   const add = () => {
     const m = input.trim();
@@ -16,22 +16,26 @@ export default function MedicationsPage() {
   };
 
   const analyze = async () => {
-    setLoading(true); setError(""); setResult(null);
-    try {
-      const res = await healthApi.analyzeMedications(medications);
-      setResult(res.data);
-    } catch (e: any) { setError(e.response?.data?.detail || "Analysis failed"); }
-    finally { setLoading(false); }
+    await gl.runJob(() => healthApi.analyzeMedications(medications));
   };
+
+  const r = gl.result as any;
+  // Result may be at top-level or nested under .medications / .analysis
+  const meds: any[] = r?.medications || r?.analysis?.medications || r?.medication_details || [];
+  const interactions: any[] = r?.drug_interactions || r?.interactions || r?.analysis?.drug_interactions || [];
+  const overallRisk: string = r?.overall_interaction_risk || r?.overall_risk || "";
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Medication Intelligence</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Understand your medications — purpose, side effects, and interactions</p>
-      </div>
+      <PageHero
+        image="https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1800&q=80&fit=crop"
+        accent="bg-emerald-500"
+        tag="Drug Intelligence"
+        title="Medication Intelligence"
+        subtitle="Understand your medications — purpose, side effects, and interactions via AI consensus"
+      />
 
-      {!result ? (
+      {!gl.result ? (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Enter medications</label>
@@ -59,53 +63,72 @@ export default function MedicationsPage() {
             )}
           </div>
 
-          {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">{error}</div>}
+          {gl.loading && (
+            <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sky-700 text-sm flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              <span>{gl.statusLabel}</span>
+            </div>
+          )}
 
-          <button onClick={analyze} disabled={loading || medications.length === 0}
+          {gl.error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">{gl.error}</div>}
+
+          <button onClick={analyze} disabled={gl.loading || medications.length === 0}
             className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-60 text-white font-semibold rounded-xl flex items-center justify-center gap-2">
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Analyzing with GenLayer consensus..." : `Analyze ${medications.length} medication${medications.length !== 1 ? "s" : ""}`}
+            {gl.loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {gl.loading ? gl.statusLabel : `Analyze ${medications.length} medication${medications.length !== 1 ? "s" : ""} on-chain`}
           </button>
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Per-medication */}
-          {result.consensus_output?.medications?.map((med: any, i: number) => (
+          {gl.txHash && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700 font-mono break-all">
+              ✓ On-chain tx: {gl.txHash}
+            </div>
+          )}
+
+          {overallRisk && (
+            <div className={`rounded-xl p-4 border text-sm font-semibold ${overallRisk === "HIGH" ? "bg-red-50 border-red-200 text-red-700" : overallRisk === "MODERATE" ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+              Overall Interaction Risk: {overallRisk}
+            </div>
+          )}
+
+          {meds.map((med: any, i: number) => (
             <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
                   <Pill className="w-5 h-5 text-violet-500" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">{med.name}</h3>
-                  <p className="text-xs text-gray-400">{med.drug_class}</p>
+                  <h3 className="font-bold text-gray-900">{med.name || med.medication_name}</h3>
+                  {med.drug_class && <p className="text-xs text-gray-400">{med.drug_class}</p>}
+                  {med.purpose && <p className="text-xs text-gray-500 mt-0.5">{med.purpose}</p>}
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 text-sm">
-                {med.common_uses?.length > 0 && (
+                {(med.common_uses || med.uses)?.length > 0 && (
                   <div>
                     <p className="font-medium text-gray-700 mb-1.5">Common uses</p>
                     <ul className="space-y-1 text-gray-500">
-                      {med.common_uses.map((u: string, j: number) => <li key={j}>• {u}</li>)}
+                      {(med.common_uses || med.uses).map((u: string, j: number) => <li key={j}>• {u}</li>)}
                     </ul>
                   </div>
                 )}
-                {med.common_side_effects?.length > 0 && (
+                {(med.common_side_effects || med.side_effects)?.length > 0 && (
                   <div>
                     <p className="font-medium text-gray-700 mb-1.5">Common side effects</p>
                     <ul className="space-y-1 text-gray-500">
-                      {med.common_side_effects.map((s: string, j: number) => <li key={j}>• {s}</li>)}
+                      {(med.common_side_effects || med.side_effects).map((s: string, j: number) => <li key={j}>• {s}</li>)}
                     </ul>
                   </div>
                 )}
               </div>
 
-              {med.serious_side_effects?.length > 0 && (
+              {(med.serious_side_effects || med.warnings)?.length > 0 && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-3">
                   <p className="text-xs font-semibold text-red-700 mb-1">Serious side effects — seek care if they occur:</p>
                   <ul className="text-xs text-red-600 space-y-0.5">
-                    {med.serious_side_effects.map((s: string, j: number) => <li key={j}>• {s}</li>)}
+                    {(med.serious_side_effects || med.warnings).map((s: string, j: number) => <li key={j}>• {s}</li>)}
                   </ul>
                 </div>
               )}
@@ -119,33 +142,38 @@ export default function MedicationsPage() {
             </div>
           ))}
 
-          {/* Interactions */}
-          {result.consensus_output?.drug_interactions?.length > 0 && (
+          {interactions.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Drug Interactions</h3>
-              {result.consensus_output.drug_interactions.map((i: any, idx: number) => (
-                <div key={idx} className={`rounded-xl p-4 mb-3 ${
-                  i.severity === "major" ? "bg-red-50 border border-red-200" :
-                  i.severity === "moderate" ? "bg-amber-50 border border-amber-200" :
-                  "bg-gray-50 border border-gray-200"
-                }`}>
+              {interactions.map((inter: any, idx: number) => (
+                <div key={idx} className={`rounded-xl p-4 mb-3 last:mb-0 ${
+                  inter.severity === "major" || inter.severity === "HIGH" ? "bg-red-50 border border-red-200" :
+                  inter.severity === "moderate" || inter.severity === "MODERATE" ? "bg-amber-50 border border-amber-200" :
+                  "bg-gray-50 border border-gray-200"}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle className={`w-4 h-4 ${i.severity === "major" ? "text-red-500" : i.severity === "moderate" ? "text-amber-500" : "text-gray-400"}`} />
-                    <span className="text-sm font-semibold">{i.medications?.join(" + ")}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white border capitalize">{i.severity}</span>
+                    <AlertTriangle className={`w-4 h-4 ${inter.severity?.match(/major|HIGH/i) ? "text-red-500" : inter.severity?.match(/moderate/i) ? "text-amber-500" : "text-gray-400"}`} />
+                    <span className="text-sm font-semibold">{inter.medications?.join(" + ") || inter.drugs?.join(" + ") || inter.combination}</span>
+                    {inter.severity && <span className="text-xs px-2 py-0.5 rounded-full bg-white border capitalize">{inter.severity}</span>}
                   </div>
-                  <p className="text-sm text-gray-600">{i.description}</p>
+                  <p className="text-sm text-gray-600">{inter.description || inter.effect}</p>
                 </div>
               ))}
             </div>
           )}
 
+          {/* Fallback: show raw result if no structured data */}
+          {meds.length === 0 && interactions.length === 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-auto">{JSON.stringify(r, null, 2)}</pre>
+            </div>
+          )}
+
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
             <Shield className="inline w-4 h-4 mr-1 mb-0.5" />
-            {result.disclaimer}
+            {r?.disclaimer || "Educational purposes only. Consult your prescriber or pharmacist for medical advice."}
           </div>
 
-          <button onClick={() => { setResult(null); setMedications([]); }}
+          <button onClick={() => { gl.reset(); setMedications([]); }}
             className="w-full py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-sm font-medium">
             Analyze different medications
           </button>
