@@ -15,18 +15,46 @@ export function formatDate(date: string | Date) {
 
 export function getRiskColor(level: string | null | undefined) {
   switch (level?.toLowerCase()) {
-    case "green": return "text-triage-green bg-green-50 border-green-200";
-    case "red":   return "text-triage-red bg-red-50 border-red-200";
-    case "yellow": return "text-triage-yellow bg-yellow-50 border-yellow-200";
-    default:       return "text-gray-600 bg-gray-50 border-gray-200";
+    case "green":
+    case "low":
+    case "self_care":
+    case "self-care":
+      return "text-green-700 bg-green-50 border-green-200";
+    case "red":
+    case "high":
+    case "critical":
+    case "emergency":
+    case "urgent":
+      return "text-red-700 bg-red-50 border-red-200";
+    case "yellow":
+    case "moderate":
+    case "soon":
+    case "primary_care":
+      return "text-amber-700 bg-amber-50 border-amber-200";
+    default:
+      return "text-gray-600 bg-gray-50 border-gray-200";
   }
 }
 
 export function getRiskLabel(level: string | null | undefined) {
   switch (level?.toLowerCase()) {
-    case "green":  return "Self-Care";
-    case "yellow": return "Medical Review Recommended";
-    case "red":    return "Urgent Attention Recommended";
-    default:       return "Pending";
+    case "green":
+    case "low":
+    case "self_care":
+    case "self-care":
+      return "Self-Care";
+    case "yellow":
+    case "moderate":
+    case "soon":
+    case "primary_care":
+      return "Medical Review Recommended";
+    case "red":
+    case "high":
+    case "critical":
+    case "emergency":
+    case "urgent":
+      return "Urgent Attention Recommended";
+    default:
+      return level ? String(level).replace(/_/g, " ") : "Pending";
   }
 }

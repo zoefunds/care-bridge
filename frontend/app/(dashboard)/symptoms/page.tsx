@@ -30,6 +30,7 @@ export default function SymptomsPage() {
 
   const r = gl.result as any;
   const analysis = r?.consensus_output?.analysis || r?.analysis || r;
+  const riskLevel = analysis?.risk_level || analysis?.overall_risk || analysis?.triage_level || analysis?.urgency_level;
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -123,13 +124,13 @@ export default function SymptomsPage() {
             </div>
           )}
 
-          <div className={`rounded-2xl p-6 border ${getRiskColor(analysis?.risk_level || analysis?.overall_risk)}`}>
+          <div className={`rounded-2xl p-6 border ${getRiskColor(riskLevel)}`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Triage Guidance</p>
-                <p className="text-2xl font-bold mt-1">{getRiskLabel(analysis?.risk_level || analysis?.overall_risk)}</p>
-                {(analysis?.care_recommendation || analysis?.immediate_action) && (
-                  <p className="mt-2 text-sm opacity-80">{analysis?.care_recommendation || analysis?.immediate_action}</p>
+                <p className="text-2xl font-bold mt-1">{getRiskLabel(riskLevel)}</p>
+                {(analysis?.care_recommendation || analysis?.immediate_action || analysis?.care_channel) && (
+                  <p className="mt-2 text-sm opacity-80">{analysis?.care_recommendation || analysis?.immediate_action || analysis?.care_channel?.replace(/_/g, " ")}</p>
                 )}
               </div>
               {(analysis?.emergency_flag || analysis?.is_emergency) && (
@@ -140,11 +141,18 @@ export default function SymptomsPage() {
             </div>
           </div>
 
-          {(analysis?.possible_conditions || analysis?.differential_diagnoses)?.length > 0 && (
+          {analysis?.summary && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-900 mb-3">Possible conditions to discuss with a doctor</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Summary</h3>
+              <p className="text-sm text-gray-700">{analysis.summary}</p>
+            </div>
+          )}
+
+          {(analysis?.possible_conditions || analysis?.differential_diagnoses || analysis?.possible_causes)?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Possible causes to discuss with a doctor</h3>
               <ul className="space-y-1.5">
-                {(analysis?.possible_conditions || analysis?.differential_diagnoses).map((c: any, i: number) => (
+                {(analysis?.possible_conditions || analysis?.differential_diagnoses || analysis?.possible_causes).map((c: any, i: number) => (
                   <li key={i} className="text-sm text-gray-700">• {typeof c === "string" ? c : c.condition || c.name}</li>
                 ))}
               </ul>
@@ -164,14 +172,32 @@ export default function SymptomsPage() {
             </div>
           )}
 
-          {(analysis?.recommendations || analysis?.self_care)?.length > 0 && (
+          {(analysis?.recommendations || analysis?.self_care || analysis?.home_care_tips)?.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-900 mb-3">Recommendations</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">Home care tips</h3>
               <ul className="space-y-1.5">
-                {(analysis?.recommendations || analysis?.self_care).map((r: string, i: number) => (
+                {(analysis?.recommendations || analysis?.self_care || analysis?.home_care_tips).map((r: string, i: number) => (
                   <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-sky-500">→</span> {r}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {analysis?.questions_for_doctor?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Questions to ask your doctor</h3>
+              <ul className="space-y-1.5">
+                {analysis.questions_for_doctor.map((q: string, i: number) => (
+                  <li key={i} className="text-sm text-gray-700 flex gap-2"><span className="text-indigo-400">?</span> {q}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {analysis?.when_to_seek_care && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              <p className="font-semibold mb-1">When to seek care</p>
+              <p>{analysis.when_to_seek_care}</p>
             </div>
           )}
 
