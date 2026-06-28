@@ -87,7 +87,10 @@ async def _bg_read_symptom(analysis_id: str, record_id: str, tx_hash: str):
         row = await db.get(SymptomAnalysis, UUID(analysis_id))
         if row:
             row.genlayer_tx_hash = tx_hash
-            row.consensus_output = result if isinstance(result, dict) else {"raw": str(result)}
+            stored = result if isinstance(result, dict) else {"raw": str(result)}
+            if "record_id" not in stored:
+                stored["record_id"] = record_id
+            row.consensus_output = stored
             row.status = status
             row.updated_at = datetime.now(timezone.utc)
             await db.commit()
@@ -104,7 +107,10 @@ async def _bg_read_medication(med_id: str, record_id: str, tx_hash: str):
         row = await db.get(Medication, UUID(med_id))
         if row:
             row.genlayer_tx_hash = tx_hash
-            row.consensus_output = result if isinstance(result, dict) else {"raw": str(result)}
+            stored = result if isinstance(result, dict) else {"raw": str(result)}
+            if "record_id" not in stored:
+                stored["record_id"] = record_id
+            row.consensus_output = stored
             row.status = status
             row.updated_at = datetime.now(timezone.utc)
             await db.commit()
@@ -480,6 +486,48 @@ async def get_medication(
         raise HTTPException(status_code=404, detail="Not found")
     return {"id": str(m.id), "status": m.status, "tx_hash": m.genlayer_tx_hash,
             "result": m.consensus_output, "created_at": m.created_at, "disclaimer": DISCLAIMER}
+
+
+@router.post("/medications/{med_id}/retry-read")
+async def retry_medication_read(
+    med_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Medication).where(Medication.id == med_id, Medication.user_id == user.id))
+    m = result.scalar_one_or_none()
+    if not m:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not m.genlayer_tx_hash:
+        raise HTTPException(status_code=400, detail="No tx_hash on record")
+    stored = m.consensus_output or {}
+    record_id = stored.get("record_id", "")
+    m.status = "pending"
+    await db.commit()
+    background_tasks.add_task(_bg_read_medication, str(m.id), record_id, m.genlayer_tx_hash)
+    return {"status": "retrying"}
+
+
+@router.post("/symptoms/{analysis_id}/retry-read")
+async def retry_symptom_read(
+    analysis_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SymptomAnalysis).where(SymptomAnalysis.id == analysis_id, SymptomAnalysis.user_id == user.id))
+    a = result.scalar_one_or_none()
+    if not a:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not a.genlayer_tx_hash:
+        raise HTTPException(status_code=400, detail="No tx_hash on record")
+    stored = a.consensus_output or {}
+    record_id = stored.get("record_id", "")
+    a.status = "pending"
+    await db.commit()
+    background_tasks.add_task(_bg_read_symptom, str(a.id), record_id, a.genlayer_tx_hash)
+    return {"status": "retrying"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

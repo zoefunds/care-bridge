@@ -1,19 +1,27 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { healthApi } from "@/lib/api";
 import { Loader2, CheckCircle2, AlertTriangle, Pill, RefreshCw, ShieldAlert } from "lucide-react";
 import { AnalysisDetailLayout } from "@/components/ui/AnalysisDetailLayout";
 
+function isEmptyResult(result: any) {
+  if (!result) return true;
+  const keys = Object.keys(result).filter((k) => k !== "record_id");
+  if (keys.length === 0) return true;
+  if (keys.length === 1 && keys[0] === "raw") return true;
+  return false;
+}
+
 function MedResult({ result }: { result: any }) {
-  if (!result) return <p className="text-sm text-gray-400 italic">No result available.</p>;
+  if (!result) return null;
 
   const r = result.analysis || result;
   const interactions: any[] = r.interactions || r.drug_interactions || [];
   const sideEffects: string[] = r.side_effects || r.common_side_effects || [];
   const recommendations: string[] = r.recommendations || r.monitoring || [];
   const warnings: string[] = r.warnings || r.contraindications || [];
-  const summary = r.summary || r.interpretation || r.overall_assessment || "";
+  const summary = r.summary || r.interpretation || r.overall_assessment || result.interaction_risk || "";
   const safetyRating = r.safety_rating || r.safety_level || "";
 
   return (
@@ -56,8 +64,7 @@ function MedResult({ result }: { result: any }) {
 
       {interactions.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <RefreshCw className="w-4 h-4 text-orange-500" />
+          <div className="px-5 py-3 border-b border-gray-100">
             <h3 className="font-semibold text-sm text-gray-900">Drug Interactions</h3>
           </div>
           <div className="divide-y divide-gray-50">
@@ -117,13 +124,40 @@ export default function MedicationDetailPage() {
   const { id } = useParams();
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     healthApi.getMedication(id as string).then((r) => setItem(r.data)).finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!item || item.status !== "pending") return;
+    const t = setTimeout(() => {
+      healthApi.getMedication(id as string).then((r) => setItem(r.data));
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [item, id]);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await healthApi.retryMedicationRead(id as string);
+      const poll = async () => {
+        const r = await healthApi.getMedication(id as string);
+        setItem(r.data);
+        if (r.data.status === "pending") setTimeout(poll, 4000);
+        else setRetrying(false);
+      };
+      setTimeout(poll, 4000);
+    } catch { setRetrying(false); }
+  };
+
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="w-8 h-8 text-sky-500 animate-spin" /></div>;
   if (!item) return <div className="text-center py-24 text-gray-500">Analysis not found</div>;
+
+  const hasEmptyResult = item.status === "complete" && isEmptyResult(item.result);
 
   return (
     <AnalysisDetailLayout
@@ -135,7 +169,24 @@ export default function MedicationDetailPage() {
       txHash={item.tx_hash}
       disclaimer={item.disclaimer}
     >
-      {item.status === "complete" && item.result && <MedResult result={item.result} />}
+      {item.status === "pending" && (
+        <div className="flex items-center gap-3 text-sm text-sky-600 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" /> Reading result from contract…
+        </div>
+      )}
+
+      {item.status === "complete" && !hasEmptyResult && <MedResult result={item.result} />}
+
+      {hasEmptyResult && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center space-y-3">
+          <p className="text-sm text-amber-800 font-medium">Result was not retrieved automatically. This can happen if the contract read timed out.</p>
+          <button onClick={handleRetry} disabled={retrying}
+            className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+            {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {retrying ? "Fetching from contract…" : "Retry reading result"}
+          </button>
+        </div>
+      )}
     </AnalysisDetailLayout>
   );
 }

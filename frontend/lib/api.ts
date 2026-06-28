@@ -87,6 +87,8 @@ export const healthApi = {
   preventionPlan: (data: object) => api.post("/health/prevention/plan", { data }),
   routeToCare: (data: object) => api.post("/health/route", { data }),
   retryJobRead: (id: string) => api.post(`/health/jobs/${id}/retry-read`),
+  retryMedicationRead: (id: string) => api.post(`/health/medications/${id}/retry-read`),
+  retrySymptomRead: (id: string) => api.post(`/health/symptoms/${id}/retry-read`),
   listDocuments: () => api.get("/health/documents"),
 };
 
