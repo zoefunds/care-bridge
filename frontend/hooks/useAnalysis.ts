@@ -20,16 +20,16 @@ async function sleep(ms: number) {
 
 async function pollUntilComplete(
   pollFn: () => Promise<{ status: string; result?: unknown; [k: string]: unknown }>,
-  timeoutMs = 300_000,
+  timeoutMs = 900_000, // 15 minutes
 ): Promise<unknown> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    await sleep(5000);
+    await sleep(6000);
     const data = await pollFn();
     if (data.status === "complete") return data;
     if (data.status === "error") throw new Error((data.result as any)?.error || "Analysis failed");
   }
-  throw new Error("Timed out waiting for consensus");
+  throw new Error("Timed out waiting for consensus. The transaction may still be processing — check history in a few minutes.");
 }
 
 export function useAnalysis<TResult = Record<string, unknown>>() {
