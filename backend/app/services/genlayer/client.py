@@ -25,14 +25,13 @@ _sdk_client = None
 def _get_sdk_client():
     global _sdk_client
     if _sdk_client is None:
+        import secrets
         from genlayer_py.chains.studionet import studionet
         from genlayer_py.client.genlayer_client import GenLayerClient as SDKClient
         from eth_account import Account
-        # Dummy account — reads are free and unsigned, account is just an identifier
-        dummy = Account.from_key(
-            "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-        )
-        _sdk_client = SDKClient(chain_config=studionet, account=dummy)
+        # Ephemeral throwaway identity — only used for read_contract calls which don't move funds.
+        # A fresh random key is generated each startup; it never signs write transactions.
+        _sdk_client = SDKClient(chain_config=studionet, account=Account.from_key("0x" + secrets.token_hex(32)))
     return _sdk_client
 
 

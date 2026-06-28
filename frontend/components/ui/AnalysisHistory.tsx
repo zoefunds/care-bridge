@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Clock, ChevronDown, ChevronUp, CheckCircle2, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Clock, ChevronDown, ChevronUp, CheckCircle2, Loader2, AlertCircle, ExternalLink, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 
 interface HistoryItem {
@@ -16,6 +17,7 @@ interface Props {
   items: HistoryItem[];
   loading?: boolean;
   title?: string;
+  detailHref?: (id: string) => string; // if provided, shows a "View full details" link
   renderResult: (result: any, item: HistoryItem) => React.ReactNode;
 }
 
@@ -27,7 +29,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="flex items-center gap-1 text-xs text-amber-500 font-medium"><Loader2 className="w-3 h-3 animate-spin" /> Pending</span>;
 }
 
-export function AnalysisHistory({ items, loading, title = "Past analyses", renderResult }: Props) {
+export function AnalysisHistory({ items, loading, title = "Past analyses", detailHref, renderResult }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (loading) {
@@ -86,6 +88,12 @@ export function AnalysisHistory({ items, loading, title = "Past analyses", rende
                   ? <p className="text-sm text-red-500">Analysis failed. Please try again.</p>
                   : <p className="text-sm text-gray-400 italic">Analysis in progress…</p>
                 }
+                {detailHref && item.status === "complete" && (
+                  <Link href={detailHref(item.id)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-600 hover:text-sky-700 mt-1">
+                    View full details <ArrowRight className="w-3 h-3" />
+                  </Link>
+                )}
               </div>
             )}
           </div>

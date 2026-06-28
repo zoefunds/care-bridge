@@ -86,6 +86,8 @@ export const healthApi = {
   interpretTrend: (data: object) => api.post("/health/trend/interpret", { data }),
   preventionPlan: (data: object) => api.post("/health/prevention/plan", { data }),
   routeToCare: (data: object) => api.post("/health/route", { data }),
+  retryJobRead: (id: string) => api.post(`/health/jobs/${id}/retry-read`),
+  listDocuments: () => api.get("/health/documents"),
 };
 
 export const userApi = {

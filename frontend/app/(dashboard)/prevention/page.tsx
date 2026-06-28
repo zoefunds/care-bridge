@@ -197,6 +197,7 @@ export default function PreventionPage() {
         items={jobHistory}
         loading={jobHistoryLoading}
         title="Past prevention plans"
+        detailHref={(id) => `/prevention/${id}`}
         renderResult={(result) => {
           const recs = result?.recommendations || result?.lifestyle_recommendations || [];
           return (

@@ -234,6 +234,7 @@ export default function HealthTrendPage() {
         items={jobHistory}
         loading={jobHistoryLoading}
         title="Past trend analyses"
+        detailHref={(id) => `/health-trend/${id}`}
         renderResult={(result) => (
           <div>
             <p className="text-sm text-gray-700 font-medium">{result?.trend || "—"}</p>

@@ -145,6 +145,7 @@ export default function TriagePage() {
         items={jobHistory}
         loading={jobHistoryLoading}
         title="Past triage analyses"
+        detailHref={(id) => `/triage/${id}`}
         renderResult={(result) => (
           <div>
             <p className="text-sm text-gray-700 font-medium">{result?.triage_level || result?.level || "—"}</p>

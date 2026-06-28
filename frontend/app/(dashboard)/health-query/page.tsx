@@ -168,6 +168,7 @@ export default function HealthQueryPage() {
         items={jobHistory}
         loading={jobHistoryLoading}
         title="Past health queries"
+        detailHref={(id) => `/health-query/${id}`}
         renderResult={(result) => (
           <div>
             <p className="text-sm text-gray-700 line-clamp-3">

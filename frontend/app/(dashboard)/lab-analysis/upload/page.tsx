@@ -4,11 +4,10 @@ import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
 import { healthApi } from "@/lib/api";
 import { useAnalysis } from "@/hooks/useAnalysis";
-import { Upload, Loader2, CheckCircle2, AlertCircle, ArrowLeft, Plus, X, PenLine } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, AlertCircle, ArrowLeft, Plus, X, PenLine, TrendingUp, TrendingDown, Minus, Apple, Calendar } from "lucide-react";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
 import { AnalysisHistory } from "@/components/ui/AnalysisHistory";
-import { getRiskLabel } from "@/lib/utils";
 
 type Marker = { name: string; value: string; unit: string; reference_range: string };
 type Tab = "upload" | "manual";
@@ -78,6 +77,13 @@ export default function UploadLabPage() {
 
   const result = gl.result as any;
 
+  function FlagBadge({ status }: { status: string }) {
+    const s = (status || "").toUpperCase();
+    if (s === "HIGH") return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"><TrendingUp className="w-3 h-3"/>High</span>;
+    if (s === "LOW") return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><TrendingDown className="w-3 h-3"/>Low</span>;
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><Minus className="w-3 h-3"/>Normal</span>;
+  }
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <PageHero
@@ -104,14 +110,119 @@ export default function UploadLabPage() {
 
       {/* Result */}
       {gl.status === "complete" && result && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          <div className="flex items-center gap-2 text-green-700 font-semibold">
-            <CheckCircle2 className="w-5 h-5" /> Consensus reached
+        <div className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+            <p className="font-semibold text-green-800">AI Consensus Reached</p>
           </div>
-          {gl.txHash && <p className="text-xs font-mono text-gray-400">TX: {gl.txHash}</p>}
-          <pre className="text-xs bg-gray-50 rounded-xl p-4 overflow-x-auto text-gray-700 whitespace-pre-wrap">
-            {JSON.stringify(result, null, 2)}
-          </pre>
+
+          {gl.txHash && (
+            <a href={`https://explorer-studio.genlayer.com/tx/${gl.txHash}`} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700 font-mono break-all hover:bg-green-100 transition-colors">
+              <span className="shrink-0">✓ On-chain tx:</span>
+              <span className="flex-1 break-all">{gl.txHash}</span>
+            </a>
+          )}
+
+          {/* Summary */}
+          {(result.analysis?.summary || result.summary) && (
+            <div className="bg-sky-50 border border-sky-100 rounded-xl p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-500 mb-1">Summary</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{result.analysis?.summary || result.summary}</p>
+            </div>
+          )}
+
+          {/* Flags */}
+          {(result.flags || result.markers_analysis || []).length > 0 && (() => {
+            const flags = result.flags || result.markers_analysis || [];
+            const abnormal = flags.filter((f: any) => (f.status || "").toUpperCase() !== "NORMAL");
+            const normal = flags.filter((f: any) => (f.status || "").toUpperCase() === "NORMAL");
+            return (
+              <div className="space-y-3">
+                {abnormal.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                      <span className="font-semibold text-sm text-gray-900">Values Needing Attention</span>
+                    </div>
+                    <div className="divide-y divide-gray-50">
+                      {abnormal.map((f: any, i: number) => (
+                        <div key={i} className="px-5 py-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-gray-900">{f.name}</p>
+                              <p className="text-sm text-gray-500 mt-0.5">
+                                Your value: <span className="font-medium text-gray-800">{f.value}{f.unit ? ` ${f.unit}` : ""}</span>
+                                {f.reference_range && <span className="ml-2 text-gray-400">· Normal: {f.reference_range}</span>}
+                              </p>
+                            </div>
+                            <FlagBadge status={f.status} />
+                          </div>
+                          {f.educational_note && (
+                            <p className="mt-2 text-sm text-gray-500 bg-gray-50 rounded-lg p-3 leading-relaxed">{f.educational_note}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {normal.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <span className="font-semibold text-sm text-gray-900">Normal Values ({normal.length})</span>
+                    </div>
+                    <div className="divide-y divide-gray-50">
+                      {normal.map((f: any, i: number) => (
+                        <div key={i} className="px-5 py-3 flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-800">{f.name}</p>
+                            <p className="text-xs text-gray-400">{f.value}{f.unit ? ` ${f.unit}` : ""}{f.reference_range && ` · Ref: ${f.reference_range}`}</p>
+                          </div>
+                          <FlagBadge status={f.status} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Lifestyle tips */}
+          {(result.lifestyle_notes || result.recommendations || []).length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Apple className="w-4 h-4 text-green-500" />
+                <h3 className="font-semibold text-sm text-gray-900">Lifestyle Tips</h3>
+              </div>
+              <ul className="space-y-2">
+                {(result.lifestyle_notes || result.recommendations || []).map((tip: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />{tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Follow-up */}
+          {(result.follow_up_suggestions || []).length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="w-4 h-4 text-sky-500" />
+                <h3 className="font-semibold text-sm text-gray-900">Follow-up Suggestions</h3>
+              </div>
+              <ul className="space-y-2">
+                {(result.follow_up_suggestions || []).map((s: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                    <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />{s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <button onClick={gl.reset} className="text-sm text-sky-600 hover:underline">Analyze another</button>
         </div>
       )}
@@ -224,17 +335,24 @@ export default function UploadLabPage() {
           id: l.id,
           status: l.status,
           created_at: l.created_at,
-          tx_hash: l.genlayer_tx_hash,
-          result: l.consensus_output,
+          tx_hash: l.tx_hash,
+          result: l.result,
         }))}
+        detailHref={(id) => `/lab-analysis/${id}`}
         loading={labHistoryLoading}
         title="Past lab analyses"
         renderResult={(result) => {
-          const level = result?.risk_level || result?.overall_risk;
+          const flags: any[] = result?.flags || result?.markers_analysis || [];
+          const abnormal = flags.filter((f: any) => (f.status || "").toUpperCase() !== "NORMAL").length;
+          const summary = result?.analysis?.summary || result?.summary || "";
           return (
             <div>
-              {level && <p className="text-sm font-medium text-gray-700">{getRiskLabel(level)}</p>}
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{result?.summary || result?.interpretation || ""}</p>
+              {flags.length > 0 && (
+                <p className="text-sm font-medium text-gray-700">
+                  {abnormal > 0 ? `${abnormal} value${abnormal > 1 ? "s" : ""} need attention` : "All values normal"}
+                </p>
+              )}
+              {summary && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{summary}</p>}
             </div>
           );
         }}

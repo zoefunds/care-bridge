@@ -1,12 +1,14 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
-  HeartPulse, LayoutDashboard, Microscope, Activity, LineChart,
+  LayoutDashboard, Microscope, Activity, LineChart,
   FileText, Pill, Stethoscope, AlertTriangle, Settings, LogOut,
-  Wallet, TrendingUp, MessageCircle, Heart, MapPin, ShieldCheck
+  Wallet, TrendingUp, MessageCircle, Heart, MapPin, ShieldCheck,
+  FolderOpen, Menu, X,
 } from "lucide-react";
 
 const nav = [
@@ -22,6 +24,7 @@ const nav = [
   { href: "/health-query", icon: MessageCircle, label: "Health Q&A" },
   { href: "/health-trend", icon: TrendingUp, label: "Trend Interpreter" },
   { href: "/route-to-care", icon: MapPin, label: "Route to Care" },
+  { href: "/documents", icon: FolderOpen, label: "Documents" },
 ];
 
 const secondaryNav = [
@@ -29,24 +32,16 @@ const secondaryNav = [
   { href: "/settings/wallet", icon: Wallet, label: "My Wallet" },
 ];
 
-export function Sidebar() {
+function NavContent({ onNav }: { onNav?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 h-screen sticky top-0 bg-white border-r border-gray-100 flex flex-col shrink-0">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="Care Bridge" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-gray-900">Care Bridge</span>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* User */}
       <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
             {user?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
@@ -59,7 +54,7 @@ export function Sidebar() {
       {/* Primary nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {nav.map(({ href, icon: Icon, label }) => (
-          <Link key={href} href={href}
+          <Link key={href} href={href} onClick={onNav}
             className={cn(
               "sidebar-link",
               (pathname === href || (href !== "/dashboard" && pathname.startsWith(href))) && "active"
@@ -75,7 +70,7 @@ export function Sidebar() {
         </div>
 
         {secondaryNav.map(({ href, icon: Icon, label }) => (
-          <Link key={href} href={href}
+          <Link key={href} href={href} onClick={onNav}
             className={cn("sidebar-link", pathname === href && "active")}
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -88,7 +83,7 @@ export function Sidebar() {
             <div className="pt-4 pb-2">
               <p className="px-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Admin</p>
             </div>
-            <Link href="/admin"
+            <Link href="/admin" onClick={onNav}
               className={cn("sidebar-link", pathname === "/admin" && "active", "text-indigo-600 hover:bg-indigo-50")}
             >
               <ShieldCheck className="w-4 h-4 shrink-0" />
@@ -106,6 +101,57 @@ export function Sidebar() {
           Sign out
         </button>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-64 h-screen sticky top-0 bg-white border-r border-gray-100 flex-col shrink-0">
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="Care Bridge" className="w-8 h-8 object-contain" />
+            <span className="font-bold text-gray-900">Care Bridge</span>
+          </div>
+        </div>
+        <NavContent />
+      </aside>
+
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 h-14 flex items-center px-4 gap-3">
+        <button onClick={() => setMobileOpen(true)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Care Bridge" className="w-7 h-7 object-contain" />
+          <span className="font-bold text-gray-900 text-sm">Care Bridge</span>
+        </div>
+      </div>
+
+      {/* Mobile drawer overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <div className="relative w-72 bg-white h-full flex flex-col shadow-xl">
+            <div className="h-14 flex items-center justify-between px-5 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <img src="/logo.png" alt="Care Bridge" className="w-7 h-7 object-contain" />
+                <span className="font-bold text-gray-900">Care Bridge</span>
+              </div>
+              <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <NavContent onNav={() => setMobileOpen(false)} />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

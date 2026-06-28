@@ -191,6 +191,7 @@ export default function RouteToCare() {
         items={jobHistory}
         loading={jobHistoryLoading}
         title="Past care routing analyses"
+        detailHref={(id) => `/route-to-care/${id}`}
         renderResult={(result) => (
           <div>
             <p className="text-sm text-gray-700 font-medium">{result?.recommended_care_level || result?.care_level || result?.recommended_channel || "—"}</p>

@@ -196,6 +196,7 @@ export default function MedicationsPage() {
         items={medHistory.map((m) => ({ ...m, label: m.medication_name || "Medications" }))}
         loading={medHistoryLoading}
         title="Past medication analyses"
+        detailHref={(id) => `/medications/${id}`}
         renderResult={(result) => {
           const risk = result?.overall_interaction_risk || result?.overall_risk;
           const meds: any[] = result?.medications || result?.analysis?.medications || [];

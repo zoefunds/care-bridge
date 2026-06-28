@@ -229,6 +229,7 @@ export default function SymptomsPage() {
         items={symHistory}
         loading={symHistoryLoading}
         title="Past symptom analyses"
+        detailHref={(id) => `/symptoms/${id}`}
         renderResult={(result) => {
           const level = result?.triage_level || result?.overall_risk || result?.risk_level;
           return (

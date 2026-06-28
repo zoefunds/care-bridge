@@ -121,7 +121,12 @@ async def _bg_read_job(job_id: str, read_method: str, record_id: str, tx_hash: s
         row = await db.get(AnalysisJob, UUID(job_id))
         if row:
             row.genlayer_tx_hash = tx_hash
-            row.result = result if isinstance(result, dict) else {"raw": str(result)}
+            stored_result = result if isinstance(result, dict) else {"raw": str(result)}
+            # Always preserve record_id so retry-read can use it
+            old = row.result or {}
+            if "record_id" not in stored_result and old.get("record_id"):
+                stored_result["record_id"] = old["record_id"]
+            row.result = stored_result
             row.status = status
             row.updated_at = datetime.now(timezone.utc)
             await db.commit()
@@ -223,13 +228,23 @@ async def submit_lab_tx(
     return {"status": "polling"}
 
 
-@router.get("/labs", response_model=list[AnalysisResponse])
+@router.get("/labs")
 async def list_labs(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(LabAnalysis).where(LabAnalysis.user_id == user.id)
         .order_by(desc(LabAnalysis.created_at)).limit(50)
     )
-    return result.scalars().all()
+    rows = result.scalars().all()
+    return [
+        {
+            "id": str(r.id),
+            "status": r.status,
+            "tx_hash": r.genlayer_tx_hash,
+            "result": r.consensus_output,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/labs/{analysis_id}")
@@ -249,6 +264,7 @@ async def get_lab_analysis(
         "status": a.status,
         "tx_hash": a.genlayer_tx_hash,
         "result": a.consensus_output,
+        "created_at": a.created_at,
         "disclaimer": DISCLAIMER,
     }
 
@@ -341,7 +357,7 @@ async def get_symptom_analysis(
     if not a:
         raise HTTPException(status_code=404, detail="Not found")
     return {"id": str(a.id), "status": a.status, "tx_hash": a.genlayer_tx_hash,
-            "result": a.consensus_output, "disclaimer": DISCLAIMER}
+            "result": a.consensus_output, "created_at": a.created_at, "disclaimer": DISCLAIMER}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -463,7 +479,7 @@ async def get_medication(
     if not m:
         raise HTTPException(status_code=404, detail="Not found")
     return {"id": str(m.id), "status": m.status, "tx_hash": m.genlayer_tx_hash,
-            "result": m.consensus_output, "disclaimer": DISCLAIMER}
+            "result": m.consensus_output, "created_at": m.created_at, "disclaimer": DISCLAIMER}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -474,8 +490,8 @@ JOB_READ_METHODS = {
     "report":        "get_report_summary",
     "triage":        "get_triage",
     "doctor_visit":  "get_doctor_visit_prep",
-    "health_query":  "get_health_query_answer",
-    "trend":         "get_trend_interpretation",
+    "health_query":  "get_health_query_response",
+    "trend":         "get_health_trend",
     "prevention":    "get_prevention_plan",
     "route":         "get_routing_result",
 }
@@ -537,9 +553,38 @@ async def get_analysis_job(
         "tx_hash": row.genlayer_tx_hash,
         "result": result,
         "job_type": row.job_type,
+        "created_at": row.created_at,
         "contract_address": _contract_address(),
-        "method": f"{row.job_type}_method",  # informational only
+        "method": f"{row.job_type}_method",
     }
+
+
+@router.post("/jobs/{job_id}/retry-read")
+async def retry_job_read(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-fetch result from contract for a job that returned null/raw."""
+    row = await db.get(AnalysisJob, UUID(job_id))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if not row.genlayer_tx_hash:
+        raise HTTPException(status_code=400, detail="No tx_hash on record")
+    read_method = JOB_READ_METHODS.get(row.job_type, "")
+    if not read_method:
+        raise HTTPException(status_code=400, detail=f"Unknown job type: {row.job_type}")
+    stored = row.result or {}
+    record_id = stored.get("record_id", "")
+    # Also check job args stored in result
+    if not record_id:
+        args = stored.get("args", [])
+        record_id = args[0] if args else ""
+    row.status = "pending"
+    await db.commit()
+    background_tasks.add_task(_bg_read_job, job_id, read_method, record_id, row.genlayer_tx_hash)
+    return {"status": "retrying"}
 
 
 @router.post("/jobs/{job_id}/submit")
@@ -661,11 +706,15 @@ async def interpret_trend(
     db: AsyncSession = Depends(get_db),
 ):
     import hashlib
+    d = req.data or {}
     record_id = uuid.uuid4().hex
     user_ref = str(user.id)[:12]
-    input_json = json.dumps(req.data or {})
-    ph = hashlib.sha256(f"{record_id}:{user_ref}:{input_json[:200]}".encode()).hexdigest()
-    args = [record_id, user_ref, input_json, ph]
+    metric_type = str(d.get("metric", d.get("metric_type", "general")))
+    readings = d.get("readings", d.get("datapoints", []))
+    datapoints_json = json.dumps(readings)
+    patient_context_json = json.dumps({k: v for k, v in d.items() if k not in ("metric", "metric_type", "readings", "datapoints")})
+    ph = hashlib.sha256(f"{record_id}:{user_ref}:{metric_type}:{datapoints_json[:200]}".encode()).hexdigest()
+    args = [record_id, user_ref, metric_type, datapoints_json, patient_context_json, ph]
     job = _make_job(user.id, "trend", args, record_id)
     db.add(job); await db.commit()
     return _job_response(job, "interpret_health_trend", args, record_id)
@@ -685,7 +734,7 @@ async def prevention_plan(
     args = [record_id, user_ref, input_json, ph]
     job = _make_job(user.id, "prevention", args, record_id)
     db.add(job); await db.commit()
-    return _job_response(job, "create_prevention_plan", args, record_id)
+    return _job_response(job, "generate_prevention_plan", args, record_id)
 
 
 @router.post("/route", status_code=202)
@@ -703,3 +752,29 @@ async def route_to_care(
     job = _make_job(user.id, "route", args, record_id)
     db.add(job); await db.commit()
     return _job_response(job, "route_to_care", args, record_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Documents
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/documents")
+async def list_documents(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Document).where(Document.user_id == user.id).order_by(desc(Document.created_at))
+    )
+    docs = result.scalars().all()
+    return [
+        {
+            "id": str(d.id),
+            "filename": d.filename,
+            "file_type": d.file_type,
+            "created_at": d.created_at,
+            "has_ocr": bool(d.ocr_text),
+            "has_extracted_data": bool(d.extracted_data),
+        }
+        for d in docs
+    ]

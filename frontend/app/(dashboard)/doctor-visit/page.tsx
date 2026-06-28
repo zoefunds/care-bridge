@@ -219,6 +219,7 @@ export default function DoctorVisitPage() {
         items={jobHistory}
         loading={jobHistoryLoading}
         title="Past doctor visit preparations"
+        detailHref={(id) => `/doctor-visit/${id}`}
         renderResult={(result) => {
           const questions = result?.visit_preparation?.questions_for_doctor || result?.questions_for_doctor || [];
           return (

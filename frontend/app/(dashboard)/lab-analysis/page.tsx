@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { healthApi } from "@/lib/api";
-import { getRiskColor, getRiskLabel, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Microscope, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
@@ -55,17 +55,25 @@ export default function LabAnalysisPage() {
                   <div>
                     <p className="font-medium text-gray-900">Lab Analysis</p>
                     <p className="text-xs text-gray-400 mt-0.5">{formatDate(lab.created_at)}</p>
-                    {lab.genlayer_tx_hash && (
+                    {lab.tx_hash && (
                       <p className="text-xs text-indigo-400 mt-0.5 font-mono">
-                        tx: {lab.genlayer_tx_hash.slice(0, 16)}...
+                        tx: {lab.tx_hash.slice(0, 16)}...
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getRiskColor(lab.risk_level)}`}>
-                    {getRiskLabel(lab.risk_level)}
-                  </span>
+                  {(() => {
+                    const flags: any[] = lab.result?.flags || lab.result?.markers_analysis || [];
+                    const abnormal = flags.filter((f: any) => (f.status || "").toUpperCase() !== "NORMAL").length;
+                    const label = lab.status === "complete"
+                      ? abnormal > 0 ? `${abnormal} flagged` : "All normal"
+                      : lab.status === "error" ? "Failed" : "Pending";
+                    const cls = lab.status === "complete"
+                      ? abnormal > 0 ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"
+                      : "bg-gray-50 text-gray-500 border-gray-200";
+                    return <span className={`text-xs font-medium px-3 py-1 rounded-full border ${cls}`}>{label}</span>;
+                  })()}
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
