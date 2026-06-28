@@ -4,6 +4,15 @@
 
 > **Disclaimer:** Care Bridge is an educational health intelligence tool. It does not diagnose, treat, prescribe, or replace professional medical advice. Always consult a qualified healthcare provider for any medical decisions.
 
+## Live
+
+| | URL |
+|---|---|
+| **Frontend** | https://care-bridge-ecru.vercel.app |
+| **Backend API** | https://care-bridge-api.fly.dev/api/v1 |
+| **API Docs** | https://care-bridge-api.fly.dev/docs |
+| **Contract Explorer** | https://explorer-studio.genlayer.com/address/0xd5149cF96bB2A87066c7f95E96e1A1865e0A9AD1 |
+
 ---
 
 ## What it does
