@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { healthApi } from "@/lib/api";
-import { getRiskColor, getRiskLabel, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Activity, Microscope, Pill, FileText, ArrowRight, Zap, Shield } from "lucide-react";
 import Link from "next/link";
 import { PageHero } from "@/components/ui/PageHero";
@@ -117,14 +117,17 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-400 mt-0.5">{formatDate(lab.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getRiskColor(lab.risk_level)}`}>
-                      {getRiskLabel(lab.risk_level)}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      lab.status === "complete" ? "bg-green-100 text-green-700" :
-                      lab.status === "processing" ? "bg-blue-100 text-blue-700" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>{lab.status}</span>
+                    {lab.status === "complete" ? (() => {
+                      const flags: any[] = lab.result?.flags || lab.result?.markers_analysis || [];
+                      const abnormal = flags.filter((f: any) => (f.status || "").toUpperCase() !== "NORMAL").length;
+                      const label = abnormal > 0 ? `${abnormal} flagged` : "All normal";
+                      const cls = abnormal > 0 ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200";
+                      return <span className={`text-xs font-medium px-3 py-1 rounded-full border ${cls}`}>{label}</span>;
+                    })() : lab.status === "error" ? (
+                      <span className="text-xs font-medium px-3 py-1 rounded-full border bg-red-50 text-red-700 border-red-200">Failed</span>
+                    ) : (
+                      <span className="text-xs font-medium px-3 py-1 rounded-full border bg-gray-50 text-gray-500 border-gray-200">Pending</span>
+                    )}
                   </div>
                 </div>
               </Link>
