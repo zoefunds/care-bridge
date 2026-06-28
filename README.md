@@ -9,8 +9,7 @@
 | | URL |
 |---|---|
 | **Frontend** | https://care-bridge-ecru.vercel.app |
-| **Backend API** | https://care-bridge-api.fly.dev/api/v1 |
-| **API Docs** | https://care-bridge-api.fly.dev/docs |
+| **Backend API** | https://care-bridge-api.fly.dev |
 | **Contract Explorer** | https://explorer-studio.genlayer.com/address/0xd5149cF96bB2A87066c7f95E96e1A1865e0A9AD1 |
 
 ---
@@ -170,8 +169,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 | Service | Platform | Notes |
 |---|---|---|
-| Frontend | Vercel | Auto-deploys from `main`; `cd frontend && npx vercel --prod` |
-| Backend | Fly.io | `cd backend && fly deploy --remote-only`; `auto_stop_machines = false` keeps it always-on |
+| Frontend | Vercel — https://care-bridge-ecru.vercel.app | `cd frontend && npx vercel --prod` |
+| Backend | Fly.io — https://care-bridge-api.fly.dev | `cd backend && fly deploy --remote-only`; `auto_stop_machines = false` keeps it always-on |
 | Database | Fly Postgres | Managed by Fly.io |
 
 ---
