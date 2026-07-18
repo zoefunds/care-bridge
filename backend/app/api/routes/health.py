@@ -30,8 +30,16 @@ from app.schemas.health import (
 )
 from app.api.dependencies import get_current_user
 from app.services.ocr.ocr_service import (
-    extract_text_from_pdf, extract_text_from_image, extract_lab_markers
+    extract_text_from_pdf, extract_text_from_image, extract_text_from_docx,
+    extract_text_from_plain, extract_lab_markers, detect_file_type
 )
+
+EXTRACTORS = {
+    "pdf": extract_text_from_pdf,
+    "image": extract_text_from_image,
+    "docx": extract_text_from_docx,
+    "text": extract_text_from_plain,
+}
 from app.services.genlayer.client import genlayer_client
 
 router = APIRouter(prefix="/health", tags=["Health Analysis"])
@@ -152,8 +160,18 @@ async def upload_lab_document(
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large (max 10MB)")
     filename = file.filename or "document"
-    file_type = "pdf" if filename.lower().endswith(".pdf") else "image"
-    ocr_text = await extract_text_from_pdf(content) if file_type == "pdf" else await extract_text_from_image(content)
+    file_type = detect_file_type(content)
+    if file_type is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload a PDF, DOCX, plain text/CSV, "
+                   "or an image (JPEG, PNG, TIFF, BMP, WEBP, HEIC).",
+        )
+    try:
+        ocr_text = await EXTRACTORS[file_type](content)
+    except Exception:
+        logger.exception("ocr_extraction_failed", filename=filename)
+        raise HTTPException(status_code=422, detail="Could not read this file. It may be corrupted or unsupported.")
     markers = extract_lab_markers(ocr_text)
     now = datetime.now(timezone.utc)
     doc = Document(user_id=user.id, filename=filename, file_type=file_type,

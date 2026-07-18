@@ -17,6 +17,8 @@ sib-api-v3-sdk==7.6.0
 PyMuPDF==1.24.3
 pytesseract==0.3.10
 Pillow==10.3.0
+pillow-heif==0.16.0
+python-docx==1.1.2
 eth-account>=0.13.1
 cryptography==42.0.7
 slowapi==0.1.9
