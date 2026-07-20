@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Microscope, Activity, LineChart,
   FileText, Pill, Stethoscope, AlertTriangle, Settings,
   Wallet, TrendingUp, MessageCircle, Heart, MapPin, ShieldCheck,
-  Menu, X,
+  FolderOpen, Menu, X,
 } from "lucide-react";
 
 const nav = [
@@ -24,11 +24,12 @@ const nav = [
   { href: "/health-query", icon: MessageCircle, label: "Health Q&A" },
   { href: "/health-trend", icon: TrendingUp, label: "Trend Interpreter" },
   { href: "/route-to-care", icon: MapPin, label: "Route to Care" },
-  { href: "/settings/wallet", icon: Wallet, label: "My Wallet" },
+  { href: "/documents", icon: FolderOpen, label: "Documents" },
 ];
 
 const secondaryNav = [
   { href: "/settings", icon: Settings, label: "Settings" },
+  { href: "/settings/wallet", icon: Wallet, label: "My Wallet" },
 ];
 
 function NavContent({ onNav }: { onNav?: () => void }) {
@@ -38,20 +39,20 @@ function NavContent({ onNav }: { onNav?: () => void }) {
   return (
     <div className="flex flex-col h-full">
       {/* User */}
-      <div className="px-4 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+      <div className="px-3 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-2.5 px-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
             {user?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{user?.full_name || "User"}</p>
+            <p className="text-xs font-semibold text-gray-900 truncate">{user?.full_name || "User"}</p>
             <p className="text-xs text-gray-400 truncate">{user?.email}</p>
           </div>
         </div>
       </div>
 
       {/* Primary nav */}
-      <nav className="flex-1 min-h-0 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-2.5 py-3 space-y-0.5 overflow-y-auto">
         {nav.map(({ href, icon: Icon, label }) => (
           <Link key={href} href={href} onClick={onNav}
             className={cn(
@@ -64,8 +65,8 @@ function NavContent({ onNav }: { onNav?: () => void }) {
           </Link>
         ))}
 
-        <div className="pt-4 pb-2">
-          <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</p>
+        <div className="pt-3 pb-1">
+          <p className="px-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Account</p>
         </div>
 
         {secondaryNav.map(({ href, icon: Icon, label }) => (
@@ -80,7 +81,7 @@ function NavContent({ onNav }: { onNav?: () => void }) {
         {user?.role === "admin" && (
           <>
             <div className="pt-4 pb-2">
-              <p className="px-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Admin</p>
+              <p className="px-2.5 text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">Admin</p>
             </div>
             <Link href="/admin" onClick={onNav}
               className={cn("sidebar-link", pathname === "/admin" && "active", "text-indigo-600 hover:bg-indigo-50")}
@@ -102,10 +103,10 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 h-screen sticky top-0 bg-white border-r border-gray-100 flex-col shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-gray-100 shrink-0">
+        <div className="h-14 flex items-center px-5 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Care Bridge" className="w-8 h-8 object-contain" />
-            <span className="font-bold text-gray-900">Care Bridge</span>
+            <img src="/logo.png" alt="Care Bridge" className="w-7 h-7 object-contain" />
+            <span className="font-bold text-sm text-gray-900">Care Bridge</span>
           </div>
         </div>
         <NavContent />
