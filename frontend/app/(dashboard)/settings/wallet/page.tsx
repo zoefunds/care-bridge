@@ -1,14 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { userApi } from "@/lib/api";
-import { Wallet, Copy, CheckCircle2, ArrowLeft, Eye, EyeOff, AlertTriangle, Download, Key, Shield } from "lucide-react";
+import { Wallet, Copy, CheckCircle2, ArrowLeft, Eye, EyeOff, AlertTriangle, Download, Key, Shield, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 function getStoredPrivateKey(): string {
   return sessionStorage.getItem("cb_wallet_key") || "";
 }
 
 export default function WalletSettingsPage() {
+  const { logout } = useAuth();
   const [wallet, setWallet] = useState<any>(null);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
@@ -179,9 +181,18 @@ export default function WalletSettingsPage() {
                 </p>
               </>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                <AlertTriangle className="inline w-4 h-4 mr-1 mb-0.5" />
-                Your private key is not available in this session. Please <strong>log out and log back in</strong> — the key is decrypted at login using your password.
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700 space-y-3">
+                <div>
+                  <AlertTriangle className="inline w-4 h-4 mr-1 mb-0.5" />
+                  Your private key is not available in this session. Please <strong>log out and log back in</strong> — the key is decrypted at login using your password.
+                </div>
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </button>
               </div>
             )}
           </div>

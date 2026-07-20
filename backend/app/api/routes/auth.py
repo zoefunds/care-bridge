@@ -68,6 +68,9 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user_id=str(user.id),
         wallet_address=wallet_data["address"],
+        wallet_encrypted_key=wallet_data["encrypted_key"],
+        wallet_key_salt=wallet_data["key_salt"],
+        wallet_key_iv=wallet_data["key_iv"],
     )
 
 

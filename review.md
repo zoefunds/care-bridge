@@ -47,3 +47,43 @@ local `.venv` — run `pip install -r requirements.txt` before testing the live 
 `python-docx`-generated file), a bare ZIP that is *not* a Word doc (correctly rejected), CSV
 text, PNG image, empty bytes, and random binary garbage — all classified as expected. Full
 endpoint testing blocked locally by the missing `pymupdf`/`Pillow` install noted above.
+
+# Review Response: Wallet Key Not Available After Signup
+
+**Feedback raised:** "Can't test this on our side — fix wallet key generation issue and add a
+button for log out." Reproduced by creating a new account: visiting **Settings → Wallet →
+Export Private Key** immediately after registering shows *"Wallet key not available — please
+log in again,"* with no way to log out and retry.
+
+## Root cause
+
+The private key is never generated client-side — it's decrypted from an encrypted bundle
+(`wallet_encrypted_key` / `wallet_key_salt` / `wallet_key_iv`) using the user's plaintext
+password, and the result is cached in `sessionStorage`. That decrypt step only ran on the
+**login** path
+([`frontend/app/(auth)/login/page.tsx`](frontend/app/(auth)/login/page.tsx)):
+`POST /auth/register` never returned the encrypted bundle in the first place
+([`backend/app/api/routes/auth.py`](backend/app/api/routes/auth.py)), so a brand-new user who
+registers and lands straight on `/dashboard` has no key in session — and, since there was no
+logout control on the wallet page, no way to force the login flow that would populate it.
+
+## Fix
+
+- **Backend** — `POST /auth/register` now returns `wallet_encrypted_key`, `wallet_key_salt`,
+  and `wallet_key_iv` alongside `wallet_address`, matching what `/auth/login` already returns
+  ([`backend/app/api/routes/auth.py`](backend/app/api/routes/auth.py)).
+- **Frontend** — [`frontend/app/(auth)/register/page.tsx`](frontend/app/(auth)/register/page.tsx)
+  now builds the wallet bundle from the register response and calls `decryptWalletKey()` with
+  the just-typed password, mirroring the login flow, so the key is cached in `sessionStorage`
+  immediately after signup instead of only after a subsequent login.
+- **Logout button** — added to the "not available" fallback state on
+  [`frontend/app/(dashboard)/settings/wallet/page.tsx`](frontend/app/(dashboard)/settings/wallet/page.tsx),
+  reusing the existing `useAuth().logout()` (already used by the sidebar nav), so a user who
+  still hits this state has a direct way back to the login form instead of being stuck.
+
+## Testing done
+
+`npx tsc --noEmit` passes clean on the frontend. Not yet exercised end-to-end in a browser
+against a running backend/DB — recommend a manual pass: register a new account, go straight to
+Settings → Wallet, confirm the private key is shown (no "not available" message), and confirm
+the logout button (if that state is ever hit) returns to `/login`.
