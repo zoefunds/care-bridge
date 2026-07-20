@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Microscope, Activity, LineChart,
   FileText, Pill, Stethoscope, AlertTriangle, Settings,
   Wallet, TrendingUp, MessageCircle, Heart, MapPin, ShieldCheck,
-  FolderOpen, Menu, X,
+  Menu, X,
 } from "lucide-react";
 
 const nav = [
@@ -24,12 +24,11 @@ const nav = [
   { href: "/health-query", icon: MessageCircle, label: "Health Q&A" },
   { href: "/health-trend", icon: TrendingUp, label: "Trend Interpreter" },
   { href: "/route-to-care", icon: MapPin, label: "Route to Care" },
-  { href: "/documents", icon: FolderOpen, label: "Documents" },
+  { href: "/settings/wallet", icon: Wallet, label: "My Wallet" },
 ];
 
 const secondaryNav = [
   { href: "/settings", icon: Settings, label: "Settings" },
-  { href: "/settings/wallet", icon: Wallet, label: "My Wallet" },
 ];
 
 function NavContent({ onNav }: { onNav?: () => void }) {
