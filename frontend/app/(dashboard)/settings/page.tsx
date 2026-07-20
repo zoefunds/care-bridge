@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { userApi } from "@/lib/api";
-import { Settings, Wallet, Shield, Loader2, CheckCircle2, User, Globe } from "lucide-react";
+import { Settings, Wallet, Shield, Loader2, CheckCircle2, User, Globe, LogOut } from "lucide-react";
 import Link from "next/link";
 import { getUser, saveAuth, getToken, getWalletBundle } from "@/lib/auth";
 
@@ -20,7 +20,7 @@ const LANGUAGES = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [lang, setLang] = useState("");
@@ -180,6 +180,19 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={logout}
+        className="w-full bg-white rounded-2xl border border-gray-100 p-5 hover:border-red-200 hover:bg-red-50 transition-all group flex gap-4 items-center text-left"
+      >
+        <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+          <LogOut className="w-5 h-5 text-red-500" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-red-600">Sign out</h3>
+          <p className="text-sm text-gray-500 mt-0.5">Log out of your Care Bridge account on this device</p>
+        </div>
+      </button>
     </div>
   );
 }

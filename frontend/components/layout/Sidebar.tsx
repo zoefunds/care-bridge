@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Microscope, Activity, LineChart,
-  FileText, Pill, Stethoscope, AlertTriangle, Settings, LogOut,
+  FileText, Pill, Stethoscope, AlertTriangle, Settings,
   Wallet, TrendingUp, MessageCircle, Heart, MapPin, ShieldCheck,
   FolderOpen, Menu, X,
 } from "lucide-react";
@@ -34,7 +34,7 @@ const secondaryNav = [
 
 function NavContent({ onNav }: { onNav?: () => void }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="flex flex-col h-full">
@@ -92,15 +92,6 @@ function NavContent({ onNav }: { onNav?: () => void }) {
           </>
         )}
       </nav>
-
-      {/* Logout */}
-      <div className="px-3 py-4 border-t border-gray-100">
-        <button onClick={logout}
-          className="sidebar-link w-full text-left text-red-500 hover:bg-red-50 hover:text-red-600">
-          <LogOut className="w-4 h-4 shrink-0" />
-          Sign out
-        </button>
-      </div>
     </div>
   );
 }
