@@ -52,7 +52,7 @@ function NavContent({ onNav }: { onNav?: () => void }) {
       </div>
 
       {/* Primary nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-3 py-4 space-y-0.5 overflow-y-auto">
         {nav.map(({ href, icon: Icon, label }) => (
           <Link key={href} href={href} onClick={onNav}
             className={cn(
